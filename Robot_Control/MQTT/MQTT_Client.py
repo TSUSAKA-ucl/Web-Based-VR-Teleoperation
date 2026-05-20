@@ -1,3 +1,5 @@
+import os
+import ssl
 import json
 import time
 from paho.mqtt import client as mqtt
@@ -25,16 +27,27 @@ MQTT_LOCAL_PORT = 8333
 MQTT_UCLAB_SERVER = "sora2.uclab.jp"
 MQTT_UCLAB_PORT = 1883
 
+# mqtt clientのconnectは connect(args.host, args.port, 60)とする
+# argsはコンストラクター引数で渡す
+# argsの初期値はMQTT_LOCAL_SERVERとMQTT_LOCAL_PORTで作る
+default_args = {
+    "host": MQTT_LOCAL_SERVER,
+    "port": MQTT_LOCAL_PORT,
+    "tls": False
+}
+
 class MQTT_Client():
-    def __init__(self, arm, mode):
+    def __init__(self, arm, mode="local", args=default_args):
+        self.args = args
         self.joint_topic = arm + 'joint/'
         self.tool_topic = arm + 'tool/'
         self.mode = mode
 
         self.client = mqtt.Client(transport="websockets")
 
-        self.MQTT_CTRL_JOINT_TOPIC = "control/" + self.joint_topic + USER_UUID
-        self.MQTT_CTRL_TOOL_TOPIC = "control/" + self.tool_topic + USER_UUID
+        user_uuid = os.getenv("USER_UUID", USER_UUID)
+        self.MQTT_CTRL_JOINT_TOPIC = "control/" + self.joint_topic + user_uuid
+        self.MQTT_CTRL_TOOL_TOPIC = "control/" + self.tool_topic + user_uuid
 
         self.time_vr_robot_offset = 0
         self.ping = 0
@@ -42,8 +55,8 @@ class MQTT_Client():
 
         self.input_count = 0
 
-        self.MQTT_SHARE_TOPIC = "share/" + USER_UUID
-        self.MQTT_ROBOT_STATE_TOPIC = "robot/" + USER_UUID
+        self.MQTT_SHARE_TOPIC = "share/" + user_uuid
+        self.MQTT_ROBOT_STATE_TOPIC = "robot/" + user_uuid
 
         self.time_vr_pub = 0
 
@@ -108,11 +121,26 @@ class MQTT_Client():
 
     def start_mqtt(self):
         if self.mode == "local":
-            self.client.tls_set(cert_reqs=0)
+            # if self.args.get("tls", False):
+            # tls_setは"~/.local/share/mkcert/rootCA.pem"があれば
+            # client.tls_set(ca_certs="~/.local/share/mkcert/rootCA.pem"
+            home_dir = os.path.expanduser("~")
+            ca_certs_path = os.path.join(home_dir, ".local/share/mkcert/rootCA.pem")
+            if os.path.exists(ca_certs_path):
+                self.client.tls_set(
+                    ca_certs=ca_certs_path,
+                    certfile=None,  # クライアント証明書を使わない場合は None
+                    keyfile=None,
+                    cert_reqs=ssl.CERT_REQUIRED,  # サーバー証明書の検証を必須にする
+                    tls_version=ssl.PROTOCOL_TLSv1_2,  # または ssl.PROTOCOL_TLS
+                )
+            else:
+                self.client.tls_set(cert_reqs=0)
             self.client.on_connect = self.on_connect
             self.client.on_disconnect = self.on_disconnect
             self.client.on_message = self.on_message
-            self.client.connect(MQTT_LOCAL_SERVER, MQTT_LOCAL_PORT, 60)
+            self.client.connect(self.args.get("host", MQTT_LOCAL_SERVER),
+                                self.args.get("port", MQTT_LOCAL_PORT), 60)
             self.client.loop_start()
 
         elif self.mode == "uclab":
@@ -198,6 +226,8 @@ class MQTT_Client():
         shm = sm.SharedMemory(name=name_shm)
         shm.close()
         print(f"Shared Memory {name_shm} closed.")
+        shm.unlink()
+        print(f"Shared Memory {name_shm} unlinked (deleted).")
         return
 
     def publish_message(self, payload_dict):

@@ -1,3 +1,4 @@
+import argparse
 import sys
 import time
 import multiprocessing.shared_memory as sm
@@ -7,10 +8,33 @@ from Sim.CoppeliasimControl import CoppeliasimControl
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description="WSS経由でMQTTブローカーにタイムスタンプを送信するスクリプト"
+    )
+    parser.add_argument(
+        "-H",
+        "--host",
+        type=str,
+        default="localhost",
+        help="MQTTブローカーのホスト名 (IPまたはFQDN) [デフォルト: localhost]",
+    )
+    parser.add_argument(
+        "-p",
+        "--port",
+        type=int,
+        default=8333,
+        help="MQTTブローカーのポート番号 [デフォルト: 8333]",
+    )
+
     name = "Sim"
     arm_topic = 'right/'
     mode = "local"
-    client = MQTT_Client(arm_topic, mode)
+    args = {
+        "host": parser.parse_args().host,
+        "port": parser.parse_args().port,
+        "tls": True if parser.parse_args().port == 8883 else False
+    }
+    client = MQTT_Client(arm_topic, mode, args)
 
     joint_list = ['/piper/joint1', '/piper/joint2', '/piper/joint3', '/piper/joint4', '/piper/joint5', '/piper/joint6']
     tool_list = ['/piper/joint7', '/piper/joint8']
@@ -95,7 +119,9 @@ if __name__ == '__main__':
 
     except KeyboardInterrupt:
         print("MQTT Recv Stopped")
+        client.close_shared_memory(name)
         sys.exit(0)
     except Exception as e:
         print("MQTT Recv Error:", e)
+        client.close_shared_memory(name)
         sys.exit(1)
