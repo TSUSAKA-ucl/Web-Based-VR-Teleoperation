@@ -14,5 +14,5 @@ client.tls_set(cert_reqs=0)
 client.on_connect = on_connect
 client.on_message = on_message
 
-client.connect("192.168.197.39", 8333, 60)
+client.connect("localhost", 8333, 60)
 client.loop_forever()

@@ -7,7 +7,12 @@ export const codeType = package_info.name; // software name
 const version = package_info.version; // version number
 
 // const MQTT_BROKER_URL = "wss://sora2.uclab.jp/mqws"; // For Nagoya-U UCLab Development
-const MQTT_BROKER_URL = "wss://192.168.197.39:8333"; // For Local Development, change to your broker address
+const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+// const protocol = "wss:";
+const host = location.hostname;
+// const port = 8333;  // WebSocketサーバーのポート
+const port =  location.protocol === 'https:' ? 8333 : 9001;
+const MQTT_BROKER_URL = `${protocol}//${host}:${port}`;
 
 import {userUUID} from './cookie_id';
 
@@ -17,6 +22,7 @@ export var idtopic = userUUID;
 
 export const connectMQTT = (callback) => {
     if (mqttclient == null) {
+      console.warn('MQTT_broker_url:',MQTT_BROKER_URL);
         const client = new mqtt.connect(MQTT_BROKER_URL, {protocolVersion: 5}); 
         client.on("connect", () => {
             console.log("MQTT Connected", client);

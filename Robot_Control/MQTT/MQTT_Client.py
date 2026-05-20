@@ -15,10 +15,12 @@ import numpy as np
 # MQTT_MANAGE_TOPIC = os.getenv("MQTT_MANAGE_TOPIC", "dev")
 # MQTT_MANAGE_RCV_TOPIC = os.getenv("MQTT_MANAGE_RCV_TOPIC", "dev") + "/" + ROBOT_UUID
 
-USER_UUID = "f5e834ab-1bd7-4cf1-9941-1b6a356a24a4-local"  # VR
+USER_UUID = "82156cf0-e682-49df-9933-2542f33584a4-local";
+# b23d999e-7d51-4ad7-8667-86fb76def786-local";
+# USER_UUID = "f5e834ab-1bd7-4cf1-9941-1b6a356a24a4-local"  # VR
 # USER_UUID = "4bc148a6-10fd-4cec-9110-c42f7889d45b-local" # Browser
 
-MQTT_LOCAL_SERVER = "192.168.197.39"
+MQTT_LOCAL_SERVER = "localhost"
 MQTT_LOCAL_PORT = 8333
 MQTT_UCLAB_SERVER = "sora2.uclab.jp"
 MQTT_UCLAB_PORT = 1883
