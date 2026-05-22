@@ -6,9 +6,22 @@ from MQTT.MQTT_Client import MQTT_Client
 import modern_robotics as mr
 import pandas as pd
 
+import MQTT.mqtt_common_opt
+
+
 # To run the code, activate can bus at first: bash can_activate.sh can0 1000000
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="wss--mosquitto--can0--piper"
+    )
+    parser = MQTT.mqtt_common_opt.add_common_opts(parser)
+    args = {
+        "host": parser.parse_args().host,
+        "port": parser.parse_args().port,
+        "tls": True if parser.parse_args().port == 8883 else False
+    }
+
     can_port = "can0"
     piper = PIPERControl(can_port)
     piper.connect()
@@ -17,7 +30,7 @@ if __name__ == "__main__":
     name = "RightArm"
     arm_topic = 'right/'
     mode = "local"
-    client = MQTT_Client(arm_topic, mode)
+    client = MQTT_Client(arm_topic, mode, args)
 
     # Control Parameter
     Tf = 0.025

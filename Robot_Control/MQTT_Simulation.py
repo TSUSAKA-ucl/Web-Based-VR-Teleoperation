@@ -11,7 +11,7 @@ import MQTT.mqtt_common_opt
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description="WSS経由でMQTTブローカーにタイムスタンプを送信するスクリプト"
+        description="WSS経由でMQTTブローカーと接続しshmでCoppeliaSimのpiper_robot_sample.tttシーンにデータを送る"
     )
     parser = MQTT.mqtt_common_opt.add_common_opts(parser)
 
