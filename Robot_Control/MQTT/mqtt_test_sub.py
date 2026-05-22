@@ -1,10 +1,14 @@
+import argparse
+import mqtt_common_opt
 import paho.mqtt.client as mqtt
 import time
 import json
 
+
 def on_connect(client, userdata, flags, rc):
     print("✅ Connected with result code", rc)
     client.subscribe("test/timestamp")  # 可以改为 "#" 订阅所有Topic
+
 
 def on_message(client, userdata, msg):
     recv_time = int(time.time() * 1000)
@@ -18,10 +22,18 @@ def on_message(client, userdata, msg):
         print("Decode error:", e)
         print("Payload:", msg.payload)
 
+
+parser = argparse.ArgumentParser(
+    description="WSS経由でMQTTブローカーからタイムスタンプを受信するスクリプト"
+)
+parser = mqtt_common_opt.add_common_opts(parser)
+args = parser.parse_args()
+
 client = mqtt.Client(transport="websockets")
-client.tls_set(cert_reqs=0)
+mqtt_common_opt.configure_tls(client)
 client.on_connect = on_connect
 client.on_message = on_message
 
-client.connect("localhost", 8333, 60)
+print(f"🔄 Connecting to {args.host}:{args.port}...")
+client.connect(args.host, args.port, 60)
 client.loop_forever()

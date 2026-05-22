@@ -6,25 +6,14 @@ import numpy as np
 from MQTT.MQTT_Client import MQTT_Client
 from Sim.CoppeliasimControl import CoppeliasimControl
 
+import MQTT.mqtt_common_opt
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="WSS経由でMQTTブローカーにタイムスタンプを送信するスクリプト"
     )
-    parser.add_argument(
-        "-H",
-        "--host",
-        type=str,
-        default="localhost",
-        help="MQTTブローカーのホスト名 (IPまたはFQDN) [デフォルト: localhost]",
-    )
-    parser.add_argument(
-        "-p",
-        "--port",
-        type=int,
-        default=8333,
-        help="MQTTブローカーのポート番号 [デフォルト: 8333]",
-    )
+    parser = MQTT.mqtt_common_opt.add_common_opts(parser)
 
     name = "Sim"
     arm_topic = 'right/'

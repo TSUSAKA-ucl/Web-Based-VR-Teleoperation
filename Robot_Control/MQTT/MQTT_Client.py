@@ -1,12 +1,11 @@
 import os
-import ssl
 import json
 import time
-from paho.mqtt import client as mqtt
 import multiprocessing.shared_memory as sm
-
 from datetime import datetime
 import numpy as np
+from paho.mqtt import client as mqtt
+import mqtt_common_opt
 
 # For register
 # import os
@@ -124,18 +123,7 @@ class MQTT_Client():
             # if self.args.get("tls", False):
             # tls_setは"~/.local/share/mkcert/rootCA.pem"があれば
             # client.tls_set(ca_certs="~/.local/share/mkcert/rootCA.pem"
-            home_dir = os.path.expanduser("~")
-            ca_certs_path = os.path.join(home_dir, ".local/share/mkcert/rootCA.pem")
-            if os.path.exists(ca_certs_path):
-                self.client.tls_set(
-                    ca_certs=ca_certs_path,
-                    certfile=None,  # クライアント証明書を使わない場合は None
-                    keyfile=None,
-                    cert_reqs=ssl.CERT_REQUIRED,  # サーバー証明書の検証を必須にする
-                    tls_version=ssl.PROTOCOL_TLSv1_2,  # または ssl.PROTOCOL_TLS
-                )
-            else:
-                self.client.tls_set(cert_reqs=0)
+            mqtt_common_opt.configure_tls(self.client)
             self.client.on_connect = self.on_connect
             self.client.on_disconnect = self.on_disconnect
             self.client.on_message = self.on_message
