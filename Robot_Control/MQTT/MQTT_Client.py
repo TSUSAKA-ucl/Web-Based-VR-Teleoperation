@@ -5,7 +5,7 @@ import multiprocessing.shared_memory as sm
 from datetime import datetime
 import numpy as np
 from paho.mqtt import client as mqtt
-import mqtt_common_opt
+from . import mqtt_common_opt
 
 # For register
 # import os
