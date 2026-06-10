@@ -78,7 +78,8 @@ class PIPERControl:
         joint_4 = msg.joint_state.joint_4 / factor
         joint_5 = msg.joint_state.joint_5 / factor
         joint_6 = msg.joint_state.joint_6 / factor
-        theta_Body_feedback = [joint_1, joint_2, joint_3, joint_4, joint_5, joint_6]
+        theta_Body_feedback = [joint_1, joint_2, joint_3, joint_4,
+                               joint_5, joint_6]
 
         return theta_Body_feedback
 
@@ -86,14 +87,14 @@ class PIPERControl:
         msg = self.piper.GetArmJointMsgs()
         factor = self.joint_factor
 
-        joint_1 = msg.joint_state.joint_1 / factor
-        joint_2 = msg.joint_state.joint_2 / factor
-        joint_3 = msg.joint_state.joint_3 / factor
-        joint_4 = msg.joint_state.joint_4 / factor
-        joint_5 = msg.joint_state.joint_5 / factor
-        joint_6 = msg.joint_state.joint_6 / factor
-        theta_Body_feedback = [joint_1, joint_2 - np.radians(90), joint_3 + np.radians(170), joint_4, joint_5,
-                               joint_6]
+        joint_1 = msg.joint_state.joint_1 / factor - self.joint_offset[0]
+        joint_2 = msg.joint_state.joint_2 / factor - self.joint_offset[1]
+        joint_3 = msg.joint_state.joint_3 / factor - self.joint_offset[2]
+        joint_4 = msg.joint_state.joint_4 / factor - self.joint_offset[3]
+        joint_5 = msg.joint_state.joint_5 / factor - self.joint_offset[4]
+        joint_6 = msg.joint_state.joint_6 / factor - self.joint_offset[5]
+        theta_Body_feedback = [joint_1, joint_2, joint_3, joint_4,
+                               joint_5, joint_6]
 
         return theta_Body_feedback
 

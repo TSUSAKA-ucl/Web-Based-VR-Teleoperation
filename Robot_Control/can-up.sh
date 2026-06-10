@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-function canUp () {
+function can_up () {
     local RES
     local x
     RES=`ip -br a show "$1"` && \
@@ -10,5 +10,7 @@ function canUp () {
 	sudo ip link set "$1" up &&\
 	ip -br a show "$1"
 }
-canUp "can0"
-canUp "can1"
+if [ "$0" == "${BASH_SOURCE}" ]; then
+    can_up "can0"
+    can_up "can1"
+fi
