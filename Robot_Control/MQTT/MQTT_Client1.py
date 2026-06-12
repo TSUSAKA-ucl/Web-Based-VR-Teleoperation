@@ -11,9 +11,20 @@ from . import mqtt_common_opt
 # import os
 # from dotenv import load_dotenv
 # load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
-# MQTT_MANAGE_TOPIC = os.getenv("MQTT_MANAGE_TOPIC", "dev")
-# MQTT_DEVICE_TOPIC = os.getenv("MQTT_DEVICE_TOPIC", "dev")
+ROBOT_TYPE = os.getenv("ROBOT_TYPE","piper_right")
+ROBOT_UUID = os.getenv("ROBOT_UUID","2A5PE-YUSHU008")
+# ROBOT_UUID = os.getenv("ROBOT_UUID", "no-uuid")
+# ROBOT_MODEL = os.getenv("ROBOT_MODEL", "piper")
 
+MQTT_MANAGE_TOPIC = os.getenv("MQTT_MANAGE_TOPIC", "mgr")
+MQTT_DEVICE_TOPIC = os.getenv("MQTT_DEVICE_TOPIC", "dev")
+
+MQTT_MANAGE_RCV_TOPIC = os.getenv("MQTT_MANAGE_RCV_TOPIC", "dev") + "/" + ROBOT_UUID
+
+USER_UUID = "82156cf0-e682-49df-9933-2542f33584a4-local";
+# b23d999e-7d51-4ad7-8667-86fb76def786-local";
+# USER_UUID = "f5e834ab-1bd7-4cf1-9941-1b6a356a24a4-local"  # VR
+# USER_UUID = "4bc148a6-10fd-4cec-9110-c42f7889d45b-local" # Browser
 
 MQTT_LOCAL_SERVER = "localhost"
 MQTT_LOCAL_PORT = 8333
@@ -26,30 +37,22 @@ MQTT_UCLAB_PORT = 1883
 default_args = {
     "host": MQTT_LOCAL_SERVER,
     "port": MQTT_LOCAL_PORT,
-    "tls": False,
-    "robot_type": os.getenv("ROBOT_TYPE", "piper_right"),
-    "robot_uuid": os.getenv("ROBOT_UUID", "MA100101000019005100402"),
+    "tls": False
 }
-# ROBOT_TYPE = os.getenv("ROBOT_TYPE","piper_right")
-# ROBOT_UUID = os.getenv("ROBOT_UUID","MA100101000019005100402")
-# ROBOT_TYPE = os.getenv("ROBOT_TYPE","piper_left")
-# ROBOT_UUID = os.getenv("ROBOT_UUID","MA100101000019005100010")
-
-
 
 class MQTT_Client():
-    MQTT_DEVICE_TOPIC = "dev"
-    MGR_REGISTER_TOPIC = "mgr/register"
     def __init__(self, arm, mode="local", args=default_args):
         self.args = args
         self.joint_topic = arm + 'joint/'
         self.tool_topic = arm + 'tool/'
         self.mode = mode
 
-        self.ROBOT_TYPE = self.args.get("robot_type", "piper_right")
-        self.ROBOT_UUID = self.args.get("robot_uuid", "MA1001010000190050100402")
-        self.MQTT_RECV_TOPIC = f"{self.MQTT_DEVICE_TOPIC}/{self.ROBOT_UUID}"
-        self.USER_UUID = None
+        self.client = mqtt.Client(transport="websockets")
+
+        user_uuid = os.getenv("USER_UUID", USER_UUID)
+        self.MQTT_RECV_TOPIC = f"{MQTT_DEVICE_TOPIC}/{ROBOT_UUID}"
+        # self.MQTT_CTRL_JOINT_TOPIC = "control/" + self.joint_topic + user_uuid
+        self.MQTT_CTRL_TOOL_TOPIC = "control/" + self.tool_topic + user_uuid
 
         self.time_vr_robot_offset = 0
         self.ping = 0
@@ -57,10 +60,8 @@ class MQTT_Client():
 
         self.input_count = 0
 
-        # self.MQTT_ROBOT_STATE_TOPIC = "robot/" + robot_uuid
-        # MQTT_ROBOT_STATE_TOPIC = os.getenv("MQTT_ROBOT_STATE_TOPIC", "robot")
-        #        f"{MQTT_ROBOT_STATE_TOPIC}/{self.ROBOT_UUID}",
-        self.MQTT_ROBOT_STATE_TOPIC = f"robot/{self.ROBOT_UUID}"
+        self.MQTT_SHARE_TOPIC = "share/" + user_uuid
+        self.MQTT_ROBOT_STATE_TOPIC = "robot/" + user_uuid
 
         self.time_vr_pub = 0
 
@@ -68,75 +69,28 @@ class MQTT_Client():
 
         self.shared_signal = 0 # shared_control_signal
         self.shared_control_flag = 0
-        self.subscription_list = []
-        
-        self.client = mqtt.Client(transport="websockets")
 
+    def on_connect(self, client, userdata, flags, rc):
+        self.client.subscribe(self.MQTT_CTRL_JOINT_TOPIC)
+        self.client.subscribe(self.MQTT_CTRL_TOOL_TOPIC)
+        self.client.subscribe(self.MQTT_SHARE_TOPIC)
 
-    def start_mqtt(self):
-        mqtt_common_opt.configure_tls(self.client)
-        self.client.on_connect = self.on_connect
-        self.client.on_disconnect = self.on_disconnect
-        self.client.message_callback_add(self.MQTT_RECV_TOPIC, self.on_recv_topic)
-        self.client.on_message = self.on_message
-        self.client.connect(self.args.get("host", MQTT_LOCAL_SERVER),
-                            self.args.get("port", MQTT_LOCAL_PORT), 60)
-        self.client.loop_start()
-
-
-    def subscribe_all_on_list(self):
-        for topic in self.subscription_list:
-            self.client.subscribe(topic)
-            print("Subscribed to topic:", topic)
-
-    def unsubscribe_all_on_list(self):
-        for topic in self.subscription_list:
-            self.client.unsubscribe(topic)
-            print("Unsubscribed from topic:", topic)
-
-    def on_connect(self, client, userdata, flags, reason_code, properties):
-        if reason_code != 0:
-            print("Failed to connect, reason code:", reason_code)
-            return
         # For register
+        self.client.subscribe(self.MQTT_MANAGE_RCV_TOPIC)  # connected -> subscribe
         my_info = {
-            "date": datetime.now().strftime('%c'),
+            "date": str(datetime.today()),
+            "version": "0.0.1",
             "devType": "robot",
-            "type": self.ROBOT_TYPE,
-            "version": "0.1.1",
-            "devId": self.ROBOT_UUID
+            "robotModel": ROBOT_MODEL,
+            "codeType": "PiPER-control",
+            "devId": ROBOT_UUID
         }
-        self.client.publish(self.MGR_REGISTER_TOPIC, json.dumps(my_info), qos=1)
-        print("Publish robot registeration:", json.dumps(my_info))
-        self.client.subscribe(self.MQTT_RECV_TOPIC)
-        self.subscribe_all_on_list()
+        self.client.publish("mgr/register", json.dumps(my_info))
+        print("Publish", json.dumps(my_info))
 
     def on_disconnect(self, client, userdata, rc):
         if rc != 0:
             print("Unexpected disconnection.")
-
-    def on_recv_topic(self, client, userdata, msg):
-        try:
-            js_msg = json.loads(msg.payload.decode())
-            from_dev_id = js_msg["devId"]
-            print(f"Received message from {from_dev_id} on topic {msg.topic}")
-            if from_dev_id and from_dev_id != self.USER_UUID:
-                print(f"------------------ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} -------------------")
-                print(f"## Capture New Control Request: {from_dev_id}")
-                # If old subscribe exists, unsubscribe
-                self.unsubscribe_all_on_list()
-                self.USER_UUID = from_dev_id
-                # Update topics with new USER_UUID
-                self.MQTT_CTRL_JOINT_TOPIC = f"control/{self.joint_topic}{self.USER_UUID}"
-                self.MQTT_CTRL_TOOL_TOPIC = f"control/{self.tool_topic}{self.USER_UUID}"
-                self.MQTT_SHARE_TOPIC = f"share/{self.USER_UUID}"
-                self.subscription_list = [ self.MQTT_CTRL_JOINT_TOPIC,
-                                           self.MQTT_CTRL_TOOL_TOPIC,
-                                           self.MQTT_SHARE_TOPIC ]
-                self.subscribe_all_on_list()
-        except Exception as e:
-            print(f"XXX Subscribe {self.MQTT_RECV_TOPIC} failed: {e}")
-               
 
     def on_message(self, client, userdata, msg):
         if msg.topic == self.MQTT_CTRL_JOINT_TOPIC:
@@ -169,6 +123,26 @@ class MQTT_Client():
 
         else:
             print("not subscribe msg", msg.topic)
+
+    def start_mqtt(self):
+        if self.mode == "local":
+            # if self.args.get("tls", False):
+            # tls_setは"~/.local/share/mkcert/rootCA.pem"があれば
+            # client.tls_set(ca_certs="~/.local/share/mkcert/rootCA.pem"
+            mqtt_common_opt.configure_tls(self.client)
+            self.client.on_connect = self.on_connect
+            self.client.on_disconnect = self.on_disconnect
+            self.client.on_message = self.on_message
+            self.client.connect(self.args.get("host", MQTT_LOCAL_SERVER),
+                                self.args.get("port", MQTT_LOCAL_PORT), 60)
+            self.client.loop_start()
+
+        elif self.mode == "uclab":
+            self.client.on_connect = self.on_connect
+            self.client.on_disconnect = self.on_disconnect
+            self.client.on_message = self.on_message
+            self.client.connect(MQTT_UCLAB_SERVER, MQTT_UCLAB_PORT, 60)
+            self.client.loop_start()
 
     def create_shared_memory(self, name_shared_memory):
         try:

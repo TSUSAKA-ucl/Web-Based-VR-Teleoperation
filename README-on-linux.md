@@ -28,7 +28,7 @@
    * run HTTPS server (Next.js dev server with experimental-https option)
    * start `mosquitto` MQTT Broker (webSockets(wss) server)
      ```
-     mosquitto -v -c ./Mosquitto/mosquitto-dev.conf
+     cd ./Mosquitto && mosquitto -v -c ./mosquitto-dev.conf
      ```
      this uses the same cert with HTTPS server(`./certificats/*.pem`)
    * fetch the VR page from HTTPS server
