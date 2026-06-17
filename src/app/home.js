@@ -367,7 +367,8 @@ export default function DynamicHome(props) {
 
  // MQTT
   const [selectedMode, setSelectedMode] = React.useState('control'); 
-  const robotIDRef = React.useRef(idtopic); 
+  const robotIDRef = React.useRef(idtopic);
+  const browserIdRef = React.useRef(idtopic); 
 
   // View Camera Pose
   const [view_cam_pose, setViewCamPose] = React.useState([0.24, 0.3, -0.67, 0, 150, 0]);
@@ -1328,8 +1329,8 @@ export default function DynamicHome(props) {
   //       cam: thetaBodyCamMQTT.current
   //     });
   //     if ((mqttclient != null) && receiveStateRef.current && !shareControl && !showMenu) {
-  //       publishMQTT(MQTT_CTRL_TOPIC + robotIDRef.current, ctl_json);
-  //       // console.log("onXRFrameMQTT published:", MQTT_CTRL_TOPIC + robotIDRef.current, ctl_json);
+  //       publishMQTT(MQTT_CTRL_TOPIC + browserIdRef.current, ctl_json);
+  //       // console.log("onXRFrameMQTT published:", MQTT_CTRL_TOPIC + browserIdRef.current, ctl_json);
   //     }
   // }, [
   //   thetaBodyMQTT.current, 
@@ -1346,7 +1347,7 @@ export default function DynamicHome(props) {
       joint: thetaBodyMQTT.current,
     });
     if ((mqttclient != null) && receiveStateRef.current && rendered && !showMenu && !shareControl) {
-      publishMQTT(MQTT_CTRL_TOPIC + 'right/' + 'joint/' + robotIDRef.current, json_msg);
+      publishMQTT(MQTT_CTRL_TOPIC + 'right/' + 'joint/' + browserIdRef.current, json_msg);
     }
   }, [thetaBodyMQTT.current]);
 
@@ -1356,7 +1357,7 @@ export default function DynamicHome(props) {
       tool: thetaToolMQTT.current,
     });
     if ((mqttclient != null) && receiveStateRef.current && rendered && !showMenu) {
-      publishMQTT(MQTT_CTRL_TOPIC + 'right/' + 'tool/' + robotIDRef.current, json_msg);
+      publishMQTT(MQTT_CTRL_TOPIC + 'right/' + 'tool/' + browserIdRef.current, json_msg);
     }
   }, [thetaToolMQTT.current, robot_state]);
 
@@ -1366,7 +1367,7 @@ export default function DynamicHome(props) {
       joint: thetaBodyLeftMQTT.current,
     });
     if ((mqttclient != null) && receiveStateRef.current && rendered && !showMenu) {
-      publishMQTT(MQTT_CTRL_TOPIC + 'left/' + 'joint/' + robotIDRef.current, json_msg);
+      publishMQTT(MQTT_CTRL_TOPIC + 'left/' + 'joint/' + browserIdRef.current, json_msg);
     }
   }, [thetaBodyLeftMQTT.current]);
 
@@ -1376,7 +1377,7 @@ export default function DynamicHome(props) {
       tool: thetaToolLeftMQTT.current,
     });
     if ((mqttclient != null) && receiveStateRef.current && rendered && !showMenu) {
-      publishMQTT(MQTT_CTRL_TOPIC + 'left/' + 'tool/' + robotIDRef.current, json_msg);
+      publishMQTT(MQTT_CTRL_TOPIC + 'left/' + 'tool/' + browserIdRef.current, json_msg);
     }
   }, [thetaToolLeftMQTT.current, robot_state_left]);
 
@@ -1386,7 +1387,7 @@ export default function DynamicHome(props) {
       joint: thetaBodyCamMQTT.current,
     });
     if ((mqttclient != null) && receiveStateRef.current && rendered && !showMenu) {
-      publishMQTT(MQTT_CTRL_TOPIC + 'cam/' + 'joint/' + robotIDRef.current, json_msg);
+      publishMQTT(MQTT_CTRL_TOPIC + 'cam/' + 'joint/' + browserIdRef.current, json_msg);
     }
   }, [thetaBodyCamMQTT.current]);
 

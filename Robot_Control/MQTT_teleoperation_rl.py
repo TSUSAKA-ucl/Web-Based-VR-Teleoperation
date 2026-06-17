@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import argparse
@@ -19,7 +20,7 @@ if __name__ == "__main__":
     parser = MQTT.mqtt_common_opt.add_common_opts(parser)
     # 追加のオプション "can0", "can1" (-c "can0")選択, "right"(-r), "left"(-l)排他的選択
     parser.add_argument(
-        "-c", "--can_port", type=str, default="can0",
+        "-c", "--can_port", type=str, default="None",
         help="CAN port for PiPER (default: can0)"
     )
     parser.add_argument(
@@ -35,7 +36,18 @@ if __name__ == "__main__":
         else "left" if parser.parse_args().left_arm
         else None
     )
-    if lr_name is None:
+    # msg_key_state
+    # msg_key_model
+    # msg_key_jf
+    if lr_name == "right":
+        msg_key_state = "state"
+        msg_key_model = "model"
+        msg_key_jf = "joint_feedback"
+    elif lr_name == "left":
+        msg_key_state = "state_left"
+        msg_key_model = "model_left"
+        msg_key_jf = "joint_feedback_left"
+    else:
         print("Please specify either --right_arm or --left_arm")
         sys.exit(1)
     
@@ -59,6 +71,14 @@ if __name__ == "__main__":
     }
 
     can_port = parser.parse_args().can_port
+    if can_port == "None":
+        if parser.parse_args().right_arm:
+            can_port = "can_piper_r4e31"
+        elif parser.parse_args().left_arm:
+            can_port = "can_piper_l282a"
+        else:
+            can_port = "can0"
+    print("Using CAN port:", can_port)
     piper = PIPERControl(can_port)
     piper.connect()
     time.sleep(1)
@@ -102,9 +122,9 @@ if __name__ == "__main__":
         time_robot_pub = int(time.time()*1000)
         robot_state_msg = {
             "time": time_robot_pub,
-            "state": "initialize",
-            "model": "agilex_piper",
-            "joint_feedback": joint_feedback,
+            msg_key_state: "initialize",
+            msg_key_model: "agilex_piper",
+            msg_key_jf: joint_feedback,
         }
         client.publish_message(robot_state_msg)
         print("time_robot_pub", time_robot_pub)
@@ -121,7 +141,7 @@ if __name__ == "__main__":
             equal = np.allclose(a, b)
             time.sleep(0.010)
             equal_count += 0.010
-            if equal_count > 1.0:
+            if equal_count > 600.0:  # 10 minutes
                 break
 
         if equal:
@@ -139,12 +159,15 @@ if __name__ == "__main__":
             np.save('time_offset.npy', time_offset)
 
             robot_state_msg = {
-                "state": "ready",
+                "time": time_robot_recv,
+                msg_key_state: "ready",
             }
             client.publish_message(robot_state_msg)
             print("Robot Ready.")
         else:
             print("Robot Not Ready. Please check VR control communication.")
+            print("shared memory a:", a)
+            print("shared memory b:", b)
 
         while equal:
             # Update joint message

@@ -23,6 +23,17 @@
    * test connectivities of MQTT  
      
 2. Run
+   このバージョンは、`mgr/request`の`type`に`package.json`の`name`の値をつけて
+   送っている。
+   そのため`MQTT_Client.py`で`mgr/register`するときの`type`も同じ値の必要がある。
+   また、`dev/[robot-id]`トピックは誰もpublishしない。
+   またJSが左右のアームでIDとして同じ`robotIDRef.current`をつけてくる。
+   (仕様ではuser-idだがブラウザの`dev/user-id`のsubscriberがこの中身をrobot-idに
+   書き換える点は、JSを変更するしかない--未)
+   
+   アームで同一
+
+
    Four terminal windows and a browser(VR) are required.
    https server, MQTT broker, robot MQTT bridge, and robot control.
    * run HTTPS server (Next.js dev server with experimental-https option)

@@ -1,0 +1,2 @@
+SUBSYSTEM=="net", ACTION=="add", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="606f", ATTRS{serial}=="004E00315246571520393733", NAME="can_piper_r4e31"
+SUBSYSTEM=="net", ACTION=="add", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="606f", ATTRS{serial}=="0028002A5246571220393733", NAME="can_piper_l282a"

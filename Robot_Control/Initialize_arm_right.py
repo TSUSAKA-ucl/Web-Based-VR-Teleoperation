@@ -3,7 +3,7 @@ import time
 
 if __name__ == "__main__":
     # Piper Initialize
-    can_port = "can0"
+    can_port = "can_piper_r4e31"
     piper= PIPERControl(can_port)
     piper.connect()
     time.sleep(0.1)

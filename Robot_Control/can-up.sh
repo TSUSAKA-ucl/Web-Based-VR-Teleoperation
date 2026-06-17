@@ -11,6 +11,7 @@ function can_up () {
 	ip -br a show "$1"
 }
 if [ "$0" == "${BASH_SOURCE}" ]; then
-    can_up "can0"
-    can_up "can1"
+    for ff in /sys/class/net/can*;  do
+	can_up `basename "$ff"`
+    done
 fi

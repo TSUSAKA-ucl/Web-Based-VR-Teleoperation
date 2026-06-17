@@ -38,7 +38,7 @@ default_args = {
 
 
 class MQTT_Client():
-    MQTT_DEVICE_TOPIC = "dev"
+    MQTT_DEVICE_TOPIC_HDR = "dev"
     MGR_REGISTER_TOPIC = "mgr/register"
     def __init__(self, arm, mode="local", args=default_args):
         self.args = args
@@ -48,7 +48,8 @@ class MQTT_Client():
 
         self.ROBOT_TYPE = self.args.get("robot_type", "piper_right")
         self.ROBOT_UUID = self.args.get("robot_uuid", "MA1001010000190050100402")
-        self.MQTT_RECV_TOPIC = f"{self.MQTT_DEVICE_TOPIC}/{self.ROBOT_UUID}"
+        # self.MQTT_RECV_TOPIC = f"{self.MQTT_DEVICE_TOPIC_HDR}/{self.ROBOT_UUID}"
+        self.MQTT_RECV_TOPIC = f"{self.MQTT_DEVICE_TOPIC_HDR}/+"
         self.USER_UUID = None
 
         self.time_vr_robot_offset = 0
@@ -70,14 +71,15 @@ class MQTT_Client():
         self.shared_control_flag = 0
         self.subscription_list = []
         
-        self.client = mqtt.Client(transport="websockets")
+        self.client = mqtt.Client(
+                callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+                transport="websockets")
 
 
     def start_mqtt(self):
         mqtt_common_opt.configure_tls(self.client)
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
-        self.client.message_callback_add(self.MQTT_RECV_TOPIC, self.on_recv_topic)
         self.client.on_message = self.on_message
         self.client.connect(self.args.get("host", MQTT_LOCAL_SERVER),
                             self.args.get("port", MQTT_LOCAL_PORT), 60)
@@ -95,6 +97,7 @@ class MQTT_Client():
             print("Unsubscribed from topic:", topic)
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
+        print("###### enter on_connect")
         if reason_code != 0:
             print("Failed to connect, reason code:", reason_code)
             return
@@ -108,6 +111,7 @@ class MQTT_Client():
         }
         self.client.publish(self.MGR_REGISTER_TOPIC, json.dumps(my_info), qos=1)
         print("Publish robot registeration:", json.dumps(my_info))
+        self.client.message_callback_add(self.MQTT_RECV_TOPIC, self.on_recv_topic)
         self.client.subscribe(self.MQTT_RECV_TOPIC)
         self.subscribe_all_on_list()
 
@@ -118,7 +122,17 @@ class MQTT_Client():
     def on_recv_topic(self, client, userdata, msg):
         try:
             js_msg = json.loads(msg.payload.decode())
-            from_dev_id = js_msg["devId"]
+            # from_dev_id = js_msg["devId"] <= 廃止
+            # Managerがpublishするトピックを直接処理するためfrom_dev_idは、
+            # payloadの"devID"がこのプロセスのROBOT_UUIDと一致している場合だけ
+            # トピック名の第二段目からとりだす。ROBOT_UUIDが一致していなければ
+            # 何もしない
+            topic_name = msg.topic.split('/')
+            if len(topic_name) >= 2 and topic_name[0] == self.MQTT_DEVICE_TOPIC_HDR:
+                from_dev_id = topic_name[1]
+            else:
+                return
+                
             print(f"Received message from {from_dev_id} on topic {msg.topic}")
             if from_dev_id and from_dev_id != self.USER_UUID:
                 print(f"------------------ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} -------------------")
@@ -252,6 +266,9 @@ class MQTT_Client():
 
     def publish_message(self, payload_dict):
         self.client.publish(self.MQTT_ROBOT_STATE_TOPIC, json.dumps(payload_dict))
+        # if self.USER_UUID:
+        #     self.MQTT_ROBOT_STATE_TOPIC = f"robot/{self.USER_UUID}"
+        #     self.client.publish(self.MQTT_ROBOT_STATE_TOPIC, json.dumps(payload_dict))
 
     def set_time_offset(self, time_offset):
         self.time_vr_robot_offset = time_offset
