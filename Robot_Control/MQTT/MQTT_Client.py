@@ -163,7 +163,7 @@ class MQTT_Client():
             if self.time_vr_pub != js_msg["timestamp"]:
                 current_time = int(time.time()*1000)
                 self.ping = current_time - (self.time_vr_pub + self.time_vr_robot_offset)
-                print("Latency", self.ping)
+                # print("Latency", self.ping)
 
                 self.time_vr_pub = js_msg["timestamp"]
                 self.input_count += 1

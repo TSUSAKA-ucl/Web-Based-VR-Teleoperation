@@ -135,15 +135,27 @@ if __name__ == "__main__":
         equal = np.allclose(a, b)
 
         equal_count = 0
+        print_timer = 0
+        print("##### enter while loop waiting for equal #####")
         while not equal:
             a = arr[0:6]
             b = arr[8:14]
             equal = np.allclose(a, b)
             time.sleep(0.010)
             equal_count += 0.010
+            print_timer += 0.010
+            if print_timer >= 10.0:
+                print(f"Waiting for equal... {equal_count:.2f} seconds elapsed")
+                # aとbを%8.4fで表示
+                print("shared memory a:", ["%8.4f" % x for x in a])
+                print("shared memory b:", ["%8.4f" % x for x in b])
+                client.publish_message(robot_state_msg)
+                print("publish robot_state_msg:", robot_state_msg)
+                print_timer = 0
             if equal_count > 600.0:  # 10 minutes
                 break
 
+        print("##### exit (not equal) while loop #####")
         if equal:
             time_robot_recv = int(time.time() * 1000)
             print("time_robot_recv", time_robot_recv)
@@ -163,7 +175,7 @@ if __name__ == "__main__":
                 msg_key_state: "ready",
             }
             client.publish_message(robot_state_msg)
-            print("Robot Ready.")
+            print("##### Robot Ready.")
         else:
             print("Robot Not Ready. Please check VR control communication.")
             print("shared memory a:", a)
