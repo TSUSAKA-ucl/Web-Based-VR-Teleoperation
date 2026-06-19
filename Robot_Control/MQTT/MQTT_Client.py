@@ -128,7 +128,10 @@ class MQTT_Client():
             # トピック名の第二段目からとりだす。ROBOT_UUIDが一致していなければ
             # 何もしない
             topic_name = msg.topic.split('/')
-            if len(topic_name) >= 2 and topic_name[0] == self.MQTT_DEVICE_TOPIC_HDR:
+            if ( len(topic_name) >= 2 and
+                 topic_name[0] == self.MQTT_DEVICE_TOPIC_HDR and
+                 js_msg.get("devId", None) == self.ROBOT_UUID
+            ):
                 from_dev_id = topic_name[1]
             else:
                 return
