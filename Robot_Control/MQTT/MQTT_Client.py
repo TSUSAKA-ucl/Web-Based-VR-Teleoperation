@@ -222,7 +222,7 @@ class MQTT_Client():
         finally:
             try:
                 existing_sm.close()
-            except:
+            except Exception:
                 pass
 
     def read_shared_memory(self, name_shared_memory):
@@ -242,7 +242,7 @@ class MQTT_Client():
             # Close handle (does NOT delete the shared memory)
             try:
                 existing_sm.close()
-            except:
+            except Exception:
                 pass
 
     def verify_shared_memory(self, name, expected_shape=(16,), dtype=np.float32):

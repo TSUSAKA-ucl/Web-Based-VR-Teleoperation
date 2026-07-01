@@ -73,20 +73,32 @@ publishするように変更
 # PiPERの一台分の`MQTT_teleoperation_rl.py`(現commit ID)の概念的状態遷移
 
 0. dormant:
-1. init:  
-   `ROBOT_TYPE`と`ROBOT_UUID`は左右のアームで同一のものに
-   設定(`MQTT_teleoperation_rl.sh`)  
-   PiPER can接続  
-   MQTT接続
-   * `MQTT_Client`constructor:  
-	 `mqtt.Client(arm, mode, args)`生成。`arm`:左右、`mode`:未使用、
-	 `args`:broker IP,port,protocol,robot_type,robot_uuid
-   * `start_mqtt`method:  
-     configure TLS, `on_connect`&`on_disconnect`&`on_message`callback登録  
-	 `connect(...)`, `loop_start()`
+1. init: 実施内容  
+   * `ROBOT_TYPE`と`ROBOT_UUID`は左右のアームで同一のものに
+	 設定(`MQTT_teleoperation_rl.sh`)  
+   * PiPER can接続(`piper = PIPERControl(can_port)`)  
+   * MQTT接続
+	 * `MQTT_Client`constructor:  
+	   `mqtt.Client(arm, mode, args)`生成。`arm`:左右、`mode`:未使用、
+	   `args`:broker IP,port,protocol,robot_type,robot_uuid
+	 * `start_mqtt`method:  
+       configure TLS, `on_connect`&`on_disconnect`&`on_message`callback登録  
+	   `connect(...)`, `loop_start()`
    
-   PiPERから初期ジョイント値読み取り
+   * PiPERから初期ジョイント値読み取り  
+	 ```
+	 arr = client.pose
+	 a = arr[0:6] # from piper_sdk(CAN)
+	 b = arr[8:14] # from MQTT, msg['joint'][0:7]
+	 ```
+
 2. ブラウザVR準備完了待ち:  
+   MQTTからの`control/user-id`(実際は`control/right/joint/[user-id]`など)
+   トピックのメッセージで、ブラウザ側が実関節角(arr[0:6])と殆ど同じになるまで
+   ```
+   while not equal:
+   ```
+   で待ち、受信目標値追従中に遷移する
 3. 受信目標値追従中:  
    * topicの最新メッセージのジョイント値取り出し
    * piperのジョイント値とりだし

@@ -3,6 +3,7 @@ import sys
 import time
 import argparse
 import numpy as np
+from Sim.CoppeliasimControl import CoppeliasimControl
 from PiPER.PIPERControl import PIPERControl
 from MQTT.MQTT_Client import MQTT_Client
 import modern_robotics as mr
@@ -22,6 +23,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "-c", "--can_port", type=str, default="None",
         help="CAN port for PiPER (default: can0)"
+    )
+    parser.add_argument(
+        "-s", "--simulation", action="store_true",
+        help="connect to simulation without using CAN bus(default: False)"
     )
     parser.add_argument(
         "-r", "--right_arm", action="store_true",
@@ -70,23 +75,34 @@ if __name__ == "__main__":
         "robot_uuid": ROBOT_UUID,
     }
 
-    can_port = parser.parse_args().can_port
-    if can_port == "None":
-        if parser.parse_args().right_arm:
-            can_port = "can_piper_r4e31"
-        elif parser.parse_args().left_arm:
-            can_port = "can_piper_l282a"
-        else:
-            can_port = "can0"
-    print("Using CAN port:", can_port)
-    piper = PIPERControl(can_port)
-    piper.connect()
-    time.sleep(1)
-
-    name = lr_name + "_arm"
     arm_topic = lr_name + "/"
     mode = "local"
     client = MQTT_Client(arm_topic, mode, args)
+
+    use_simulation = parser.parse_args().simulation
+    print("use_simulation:", use_simulation)
+    if use_simulation:
+        name = "Sim"
+        joint_list = ['/piper/joint1', '/piper/joint2', '/piper/joint3',
+                      '/piper/joint4', '/piper/joint5', '/piper/joint6']
+        tool_list = ['/piper/joint7', '/piper/joint8']
+        sim = CoppeliasimControl(joint_list, tool_list)
+        joint_read_func = sim.get_joint_position
+    else:
+        can_port = parser.parse_args().can_port
+        if can_port == "None":
+            if parser.parse_args().right_arm:
+                can_port = "can_piper_r4e31"
+            elif parser.parse_args().left_arm:
+                can_port = "can_piper_l282a"
+            else:
+                can_port = "can0"
+        print("Using CAN port:", can_port)
+        piper = PIPERControl(can_port)
+        piper.connect()
+        time.sleep(1)
+        name = lr_name + "_arm"
+        joint_read_func = piper.get_joint_feedback_mr
 
     # Control Parameter
     Tf = 0.025
@@ -115,7 +131,7 @@ if __name__ == "__main__":
         thetaBody = arr[8:14].astype(float)  # 6Dof robot
         thetaTool = arr[15].astype(float)
 
-        joint_feedback = piper.get_joint_feedback_mr()
+        joint_feedback = joint_read_func()
         arr[0:6] = joint_feedback
 
         # Send robot current state to MQTT
@@ -144,11 +160,11 @@ if __name__ == "__main__":
             time.sleep(0.010)
             equal_count += 0.010
             print_timer += 0.010
-            if print_timer >= 10.0:
+            if print_timer >= 5.0:
                 print(f"Waiting for equal... {equal_count:.2f} seconds elapsed")
                 # aとbを%8.4fで表示
-                print("shared memory a:", ["%8.4f" % x for x in a])
-                print("shared memory b:", ["%8.4f" % x for x in b])
+                print(" Real  Robot:", ["%8.4f" % x for x in a])
+                print(" WebVR Robot:", ["%8.4f" % x for x in b])
                 client.publish_message(robot_state_msg)
                 print("publish robot_state_msg:", robot_state_msg)
                 print_timer = 0
@@ -175,11 +191,12 @@ if __name__ == "__main__":
                 msg_key_state: "ready",
             }
             client.publish_message(robot_state_msg)
+        print("Real  Robot:", a)
+        print("WebVR Robot:", b)
+        if equal:
             print("##### Robot Ready.")
         else:
             print("Robot Not Ready. Please check VR control communication.")
-            print("shared memory a:", a)
-            print("shared memory b:", b)
 
         while equal:
             # Update joint message
@@ -193,38 +210,44 @@ if __name__ == "__main__":
 
             thetaTool = arr[15].astype(float)
 
-            # Get joint feedback
-            joint_feedback = piper.get_joint_feedback_mr()
-            joint_feedback = [round(x, 4) for x in joint_feedback]
-            joint_feedback = np.array(joint_feedback)
-            arr[0:6] = joint_feedback
+            if use_simulation:
+                sim.send_joint_position(thetaBody)
+                sim.send_tool_position(thetaTool)
+                joint_position = sim.get_joint_position()
+                time.sleep(0.0165)
 
-            error = thetaBody - joint_feedback
-            d_error = (error - prev_error) / Tf
-            mse = np.mean(error ** 2)  # Mean Square Error
-            rmse = np.sqrt(mse)
+            else:
+                # Get joint feedback
+                joint_feedback = piper.get_joint_feedback_mr()
+                joint_feedback = [round(x, 4) for x in joint_feedback]
+                joint_feedback = np.array(joint_feedback)
+                arr[0:6] = joint_feedback
 
-            # PD control
-            control_signal = joint_feedback + Kp * error + Kd * d_error
-            prev_error = error.copy()
+                error = thetaBody - joint_feedback
+                d_error = (error - prev_error) / Tf
+                mse = np.mean(error ** 2)  # Mean Square Error
+                rmse = np.sqrt(mse)
 
-            # Trajectory Plan
-            theta_current = joint_feedback
-            theta_target =control_signal
-            if rmse > 0.0015:
-                theta_traj = mr.JointTrajectory(theta_current, theta_target, Tf, N, method)
+                # PD control
+                control_signal = joint_feedback + Kp * error + Kd * d_error
+                prev_error = error.copy()
 
-                for theta in theta_traj:
-                    piper.joint_control_offset(theta, 60)
-
+                # Trajectory Plan
+                theta_current = joint_feedback
+                theta_target =control_signal
+                if rmse > 0.0015:
+                    theta_traj = mr.JointTrajectory(theta_current,
+                                                    theta_target, Tf, N,
+                                                    method)
+                    for theta in theta_traj:
+                        piper.joint_control_offset(theta, 60)
+                        finger_pos = ((thetaTool) * 0.85) + 0.4  # /mm
+                        piper.gripper_control(finger_pos, 1000)
+                        time.sleep(dt)
+                else:
                     finger_pos = ((thetaTool) * 0.85) + 0.4  # /mm
                     piper.gripper_control(finger_pos, 1000)
-
                     time.sleep(dt)
-            else:
-                finger_pos = ((thetaTool) * 0.85) + 0.4  # /mm
-                piper.gripper_control(finger_pos, 1000)
-                time.sleep(dt)
 
     except KeyboardInterrupt:
         print("MQTT Recv Stopped")
@@ -232,6 +255,7 @@ if __name__ == "__main__":
             "state": "stop",
         }
         client.publish_message(robot_state_msg)
+        client.close_shared_memory(name)
         sys.exit(0)
     except Exception as e:
         print("MQTT Recv Error:", e)
@@ -239,4 +263,5 @@ if __name__ == "__main__":
             "state": "error",
         }
         client.publish_message(robot_state_msg)
+        client.close_shared_memory(name)
         sys.exit(1)
