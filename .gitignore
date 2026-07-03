@@ -4,5 +4,5 @@ __pycache__/
 node_modules/
 pnpm-lock.yaml
 .next/
-
-certificates
+certificates/localhost-key.pem
+certificates/localhost.pem

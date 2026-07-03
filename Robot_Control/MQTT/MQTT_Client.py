@@ -1,11 +1,19 @@
 import os
 import json
+import ssl
 import time
 import multiprocessing.shared_memory as sm
 from datetime import datetime
 import numpy as np
 from paho.mqtt import client as mqtt
 from . import mqtt_common_opt
+
+# CA_CERTS_PATH = os.path.join(os.path.dirname(__file__), "certs")
+# 自分のhomeの .local/share/mkcert/にあるrootCA.pemを使わずに
+# 環境変数からパスを取得し無ければこのスクリプトのディレクトリにあるrootCA.pem
+# を使用する
+# CA_CERTS_PATH = os.path.expanduser("~/.local/share/mkcert/rootCA.pem")
+CA_CERTS_PATH = os.getenv("CA_CERTS_PATH", os.path.join(os.path.dirname(__file__), "certs/rootCA.pem"))
 
 # For register
 # import os
@@ -74,7 +82,9 @@ class MQTT_Client():
         self.client = mqtt.Client(
                 callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
                 transport="websockets")
-
+        context = ssl.create_default_context()
+        context.load_verify_locations(CA_CERTS_PATH)
+        self.client.tls_set_context(context)
 
     def start_mqtt(self):
         mqtt_common_opt.configure_tls(self.client)

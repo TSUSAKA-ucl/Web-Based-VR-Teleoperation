@@ -1,3 +1,10 @@
+## CAに関する注意
+	独自CAを使います。現在使用しているCAのcertは[`Robot_Control/MQTT/cert/rootCA.pem`](Robot_Control/MQTT/cert/rootCA.pem)です。サーバー認証用の鍵の実物については問い合わせてください。`localhost`及び`uclab-deskmeet-1`用のサーバー鍵は作成済です。サーバー鍵は`~/.local/share/ssl/`の下にあることにしています。[`./certificates/`](./certificates/)にcdして、[`./mklink.sh`](./certificates/mklink.sh)を実行しすると、そこにsymlinkを作成します。Next.jsのdevサーバーとMosquittoはそれを見に行きます。
+
+[`./Robot_Control/`](./Robot_Control/)の下のクライアントのPythonスクリプトは[`Robot_Control/MQTT/cert/rootCA.pem`](Robot_Control/MQTT/cert/rootCA.pem)を使います。[`MetaworkMQTT.py`managerクライアント](./Mosquitto/MetaworkMQTT/MetaworkMQTT.py)はこの版ではサーバー認証しませんがコマンドラインオプションでrootCAのcertを参照するようにします。
+
+pemファイルの調べ方等は[こちらを見てください](./Robot_Control/MQTT/README.md)。
+
 # Web-Based VR Teleoperation System
 
 <div align="center">
