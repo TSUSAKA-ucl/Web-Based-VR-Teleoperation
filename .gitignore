@@ -6,3 +6,4 @@ pnpm-lock.yaml
 .next/
 certificates/localhost-key.pem
 certificates/localhost.pem
+.pnpm-store

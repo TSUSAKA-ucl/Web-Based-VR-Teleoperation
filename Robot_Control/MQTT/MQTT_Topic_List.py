@@ -4,8 +4,8 @@ import paho.mqtt.client as mqtt
 import time
 
 
-def on_connect(client, userdata, flags, rc):
-    print("Connected with result code", rc)
+def on_connect(client, userdata, flags, reason_code, properties):
+    print("Connected with result code", reason_code)
     client.subscribe("#")
 
 def on_message(client, userdata, msg):
@@ -18,7 +18,9 @@ parser = argparse.ArgumentParser(
 parser = mqtt_common_opt.add_common_opts(parser)
 args = parser.parse_args()
 
-client = mqtt.Client(transport="websockets")
+client = mqtt.Client(
+    callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+    transport="websockets")
 mqtt_common_opt.configure_tls(client)
 
 client.on_connect = on_connect

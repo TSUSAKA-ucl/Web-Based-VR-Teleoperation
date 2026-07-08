@@ -13,8 +13,8 @@ from . import mqtt_common_opt
 # 環境変数からパスを取得し無ければこのスクリプトのディレクトリにあるrootCA.pem
 # を使用する
 # CA_CERTS_PATH = os.path.expanduser("~/.local/share/mkcert/rootCA.pem")
-CA_CERTS_PATH = os.getenv("CA_CERTS_PATH", os.path.join(os.path.dirname(__file__), "certs/rootCA.pem"))
-
+CA_CERTS_PATH = os.getenv("CA_CERTS_PATH", os.path.join(os.path.dirname(__file__), "rootCA.pem"))
+print("CA_CERTS_PATH:", CA_CERTS_PATH)
 # For register
 # import os
 # from dotenv import load_dotenv
@@ -87,7 +87,9 @@ class MQTT_Client():
         self.client.tls_set_context(context)
 
     def start_mqtt(self):
-        mqtt_common_opt.configure_tls(self.client)
+        print("MQTT Client starting...")
+        # mqtt_common_opt.configure_tls(self.client)
+        print("MQTT Client connecting to:", self.args.get("host", MQTT_LOCAL_SERVER), ":", self.args.get("port", MQTT_LOCAL_PORT))
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
         self.client.on_message = self.on_message

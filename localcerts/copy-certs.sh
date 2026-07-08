@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-# このホストのサーバー認証用のcertとkeyのリンクを此処に作成する
+# このホストのサーバー認証用のcertとkeyのコピーをここにつくる
 ThisDir=$(cd $(dirname $0); pwd -P)
 # 証明書のディレクトリ
 CertDir="${HOME}/.local/share/ssl"
@@ -13,10 +13,10 @@ if [ $KeyFileCount -eq 1 ]; then
     CertFileName=$(echo "$KeyFile" | sed 's/-key\.pem$/.pem/')
     if [ -f "$CertFileName" ]; then
 	cd "$ThisDir"
-	ln -sf "$CertDir/$CertFileName" "$ThisDir/user-cert.pem"
-	ln -sf "$CertDir/$KeyFile" "$ThisDir/user-key.pem"
-	echo "Created symlinks for $CertFileName and $KeyFile in $ThisDir
-"
+	cp -p "$CertDir/$CertFileName" "$ThisDir/localhost.pem"
+	cp -p "$CertDir/$KeyFile" "$ThisDir/localhost-key.pem"
+	chmod 600 "$ThisDir/localhost.pem" "$ThisDir/localhost-key.pem"
+	echo "Copy cert and key files to $ThisDir"
 	exit 0
     else
 	echo "Error: Corresponding certificate file $CertFileName not found for key $KeyFile"

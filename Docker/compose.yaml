@@ -1,0 +1,83 @@
+# run.shを使用してcomposeを起動する。
+# run.shは、UIDとGIDを設定、ユーザー所有のホスト鍵を適切にコピー、xhost +local:dockerを行い、
+# trap EXITで、xhost -local:dockerを実行し、コピーした鍵を削除する。
+---
+services:
+  # 1. ブローカー (Mosquitto)
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mqtt_broker
+    ports:
+      - "8883:8883"
+      - "8333:8333"
+      - "8083:8083"
+      # - "1883:1883"
+      # - "9001:9001" # WSS用ポート
+    volumes:
+      - ../Mosquitto/config:/mosquitto/config
+      - ../Mosquitto/data:/mosquitto/data
+      - ../Mosquitto/log:/mosquitto/log
+      # - ${HOME}/.local/share/mkcert/rootCA.pem:/mosquitto/config/certs/rootCA.pem:ro
+      - ../Robot_Control/MQTT/rootCA.pem:/mosquitto/config/certs/rootCA.pem:ro
+      - ../localcerts/localhost.pem:/mosquitto/config/certs/localcerts.pem:ro
+      - ../localcerts/localhost-key.pem:/mosquitto/config/certs/localcerts-key.pem:ro
+    working_dir: /mosquitto
+    command: sh -c "mosquitto -c ./config/mosquitto-container.conf"
+    user: "${UID:-1000}:${GID:-1000}" # run.shでUIDとGIDを設定している場合はそれを使用
+    healthcheck:
+      # test: ["CMD-SHELL", "mosquitto_sub -t '$$aws/dummy' -C 1 -E -i test_hc || exit 1"]
+      test: ["CMD-SHELL", "nc -z localhost 8083 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # 2. Python MQTT クライアント 
+  python-client:
+    image: python:3.11-slim
+    container_name: metawork_mqtt_manager
+    volumes:
+      - ../Mosquitto/MetaworkMQTT/:/app
+      - ../Robot_Control/MQTT/rootCA.pem:/app/rootCA.pem:ro
+    working_dir: /app
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    # command: sh -c "[ -f requirements.txt ] && pip install -r requirements.txt; python ....
+    command: sh -c "pip install paho-mqtt && python MetaworkMQTT.py --wss --host host.docker.internal --port 8033"
+    # 現在は、client.tls_set(cert_reqs=0)としてあるのでmosquittoの証明書を使用しないが...
+    # localhostでもMan-in-the-Middle攻撃を防ぐために、証明書を使用するように変更することを推奨。
+    user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      - MQTT_BROKER_HOST=host.docker.internal
+
+  # 3. Next.js 開発サーバー
+  nextjs-dev:
+    image: node:22-alpine
+    container_name: nextjs_dev_https_server
+    ports:
+      - "3000:3000"
+    volumes:
+      - ..:/app
+      - /app/node_modules
+    working_dir: /app
+    command: sh -c "corepack enable pnpm && pnpm install && pnpm dev-mkcert"
+    # user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      - WATCHPACK_POLLING=true
+
+  # 4. CoppeliaSim (追加分)
+  coppeliasim:
+    image: coppeliasim-ubuntu24
+    container_name: coppelia_container
+    entrypoint: /opt/CoppeliaSim_Edu_V4_9_0_rev6_Ubuntu24_04/coppeliaSim
+    command: ["-GpreferredSandboxLang=python"] # 必要に応じて末尾に引数を追加可能
+    ports:
+      - "23000-23500:23000-23500"
+    volumes:
+      - ./shared:/shared
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    environment:
+      - QT_QPA_PLATFORM=xcb
+      - LIBGL_ALWAYS_SOFTWARE=1
+      - DISPLAY=${DISPLAY}

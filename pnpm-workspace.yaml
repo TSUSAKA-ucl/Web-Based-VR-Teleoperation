@@ -1,0 +1,6 @@
+allowBuilds:
+  sharp: true
+
+overrides:
+  "three-bmfont-text": "^3.0.1"
+
