@@ -1,8 +1,10 @@
 from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 
+# constructorのオプション引数でcoppeliaSimサーバーのIP,FQDNを入れる
 class CoppeliasimControl:
-    def __init__(self, joint_name_list, tool_name_list):
-        copp_client = RemoteAPIClient()
+    def __init__(self, joint_name_list, tool_name_list, ip_address='localhost', port=23000):
+        copp_client = RemoteAPIClient(host=ip_address, port=port)
+        print(f"Connected to CoppeliaSim at {ip_address}:{port}")
         self.sim = copp_client.getObject('sim')
         self.joint_handles = [self.sim.getObject(joint_name) for joint_name in joint_name_list]
         self.tool_handles = [self.sim.getObject(tool_name) for tool_name in tool_name_list]

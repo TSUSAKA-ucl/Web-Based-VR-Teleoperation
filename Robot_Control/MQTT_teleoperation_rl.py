@@ -28,6 +28,11 @@ if __name__ == "__main__":
         "-s", "--simulation", action="store_true",
         help="connect to simulation without using CAN bus(default: False)"
     )
+    # coppeliaSimのIP
+    parser.add_argument(
+        "-i", "--coppelia_host", type=str, default="localhost",
+        help="IP address of CoppeliaSim (default: localhost)"
+    )
     parser.add_argument(
         "-r", "--right_arm", action="store_true",
         help="Use right arm (default: False)"
@@ -86,7 +91,8 @@ if __name__ == "__main__":
         joint_list = ['/piper/joint1', '/piper/joint2', '/piper/joint3',
                       '/piper/joint4', '/piper/joint5', '/piper/joint6']
         tool_list = ['/piper/joint7', '/piper/joint8']
-        sim = CoppeliasimControl(joint_list, tool_list)
+        sim = CoppeliasimControl(joint_list, tool_list,
+                                 ip_address=parser.parse_args().coppelia_host)
         joint_read_func = sim.get_joint_position
     else:
         can_port = parser.parse_args().can_port

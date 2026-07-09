@@ -23,7 +23,7 @@ print("CA_CERTS_PATH:", CA_CERTS_PATH)
 # MQTT_DEVICE_TOPIC = os.getenv("MQTT_DEVICE_TOPIC", "dev")
 
 
-MQTT_LOCAL_SERVER = "localhost"
+MQTT_LOCAL_SERVER = os.getenv("MQTT_BROKER", "localhost")
 MQTT_LOCAL_PORT = 8333
 MQTT_UCLAB_SERVER = "sora2.uclab.jp"
 MQTT_UCLAB_PORT = 1883

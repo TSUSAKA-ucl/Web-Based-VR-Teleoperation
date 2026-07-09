@@ -1,0 +1,11 @@
+cbor
+coppeliasim_zmqremoteapi_client
+modern-robotics
+numpy
+packaging
+paho-mqtt
+piper-sdk
+python-can
+pyzmq
+typing_extensions
+wrapt
