@@ -1,3 +1,8 @@
+# run.shを使用してcomposeを起動する。
+# run.shは、ROBOT_TYPE, ROBOT_UUID, MQTT_BROKERを設定し、
+# paho-mqtt用のrootCAはソースコードのある../MQTT/に配置する。
+# coppeliaSim用にxhost +local:dockerを行い、trap EXITで、xhost -local:dockerを実行
+---
 services:
   # 4. CoppeliaSim
   coppeliasim:
@@ -38,11 +43,12 @@ services:
     volumes:
       - ..:/app:ro
       - python_packages:/usr/local/lib/python3.11/site-packages
+      - liu_shared_data:/var/run/network-delay
     working_dir: /app
     environment:
-      - ROBOT_TYPE="${ROBOT_TYPE}"
-      - ROBOT_UUID="${ROBOT_UUID}"
-      - MQTT_BROKER="${MQTT_BROKER}"
+      - ROBOT_TYPE=${ROBOT_TYPE}
+      - ROBOT_UUID=${ROBOT_UUID}
+      - MQTT_BROKER=${MQTT_BROKER}
       - PYTHONUNBUFFERED=1
     # 「echo wait 10s && sleep 10」を削除し、インストール後すぐに実行できるように修正
     command: ["-c", "pip install -r requirements.txt && python3 MQTT_teleoperation_rl.py --simulation --coppelia_host=coppeliasim --right_arm --host=${MQTT_BROKER}"]
@@ -50,4 +56,6 @@ services:
 
 volumes:
   python_packages:
+    driver: local
+  liu_shared_data:
     driver: local

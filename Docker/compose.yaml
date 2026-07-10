@@ -1,6 +1,6 @@
 # run.shを使用してcomposeを起動する。
-# run.shは、UIDとGIDを設定、ユーザー所有のホスト鍵を適切にコピー、xhost +local:dockerを行い、
-# trap EXITで、xhost -local:dockerを実行し、コピーした鍵を削除する。
+# run.shは、UIDとGIDを設定、ユーザー所有のホスト鍵を適切にコピー
+# trap EXITで、コピーした鍵を削除する。
 ---
 services:
   # 1. ブローカー (Mosquitto)
@@ -17,23 +17,15 @@ services:
       - ../Mosquitto/config:/mosquitto/config
       - ../Mosquitto/data:/mosquitto/data
       - ../Mosquitto/log:/mosquitto/log
-      # - ${HOME}/.local/share/mkcert/rootCA.pem:/mosquitto/config/certs/rootCA.pem:ro
-      # - ../Robot_Control/MQTT/rootCA.pem:/mosquitto/config/certs/rootCA.pem:ro
-      # - ../localcerts/localhost.pem:/mosquitto/config/certs/localcerts.pem:ro
-      # - ../localcerts/localhost-key.pem:/mosquitto/config/certs/localcerts-key.pem:ro
     working_dir: /mosquitto
     command: sh -c "mosquitto -c ./config/mosquitto-container.conf"
     user: "${UID:-1000}:${GID:-1000}" # run.shでUIDとGIDを設定している場合はそれを使用
-    # healthcheck:
-    #   # test: ["CMD-SHELL", "mosquitto_sub -t '$$aws/dummy' -C 1 -E -i test_hc || exit 1"]
-    #   test: ["CMD-SHELL", "nc -z localhost 8333 || exit 1"]
-    #   # test: ["CMD", "mosquitto_sub", "-t", "$$sys/broker/version", "-C", "1", "-E"]
-    #   # test: "mosquitto_sub -t '$$sys/broker/version' -C 1 -E"
-    #   # test: ["CMD", "mosquitto_sub", "-t", "healthcheck/heartbeat", "-W", "1"]
-    #   interval: 5s
-    #   timeout: 3s
-    #   retries: 5
-    #   start_period: 5s
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z -w 3 localhost 8333 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 2s
 
   # 2. Python MQTT クライアント 
   python-client:
@@ -45,15 +37,13 @@ services:
       - /etc/passwd:/etc/passwd:ro
       - /etc/group:/etc/group:ro
       - ${HOME}
-    # extra_hosts:
-    #   - "host.docker.internal:${HOSTIP}"
     working_dir: /app
-    # depends_on:
-    #   mosquitto:
-    #     condition: service_healthy
+    depends_on:
+      mosquitto:
+        condition: service_healthy
     # command: sh -c "[ -f requirements.txt ] && pip install -r requirements.txt; python ....
     # command: sh -c "pip install paho-mqtt && python MetaworkMQTT.py --wss --host host.docker.internal --port 8083"
-    command: ["-c", "pip install paho-mqtt && echo wait a little && sleep 2 && python3 MetaworkMQTT.py --wss --host mosquitto" ]
+    command: ["-c", "pip install paho-mqtt && python3 MetaworkMQTT.py --wss --host mosquitto" ]
     # command: [ "-c", "sleep 10000" ]
     entrypoint: /usr/bin/bash
     # 現在は、client.tls_set(cert_reqs=0)としてあるのでmosquittoの証明書を使用しないが...

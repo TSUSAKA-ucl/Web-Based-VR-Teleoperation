@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import numpy as np
 import modern_robotics as mr
 
+# from constants import TIME_OFFSET_PATH
 from MQTT.mqtt_client import MQTT_Client, MQTTConfig
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
@@ -61,7 +62,7 @@ def main():
     # payloadはrobot type毎にフロントエンドに対応して異なり、piper(control buffer)がそれを処理する
     client = MQTT_Client(config, piper)
 
-    # vr_time_offset = np.load("time_offset.npy")
+    # vr_time_offset = np.load(TIME_OFFSET_PATH)
     # client.set_time_offset(vr_time_offset)
 
     # Control Parameter

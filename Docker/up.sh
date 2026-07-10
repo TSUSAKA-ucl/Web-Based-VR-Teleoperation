@@ -35,6 +35,7 @@ cmp_and_copy "$CADir"/rootCA.pem "$BrokerCerts"/rootCA.pem
 # MQTT client(MetaworkMQTT.py)用にホストのIPを取り出す
 # HOSTIP=`ip route get 8.8.8.8 | sed 's/^.*src \+\([0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+\) *.*$/\1/;t;d'`
 # export HOSTIP
+# MetaworkMQTT.pyは同じcomposeネットワーク内のMosquittoコンテナに接続するので、ホストIPは不要になった。
 
 # Docker Compose で全サービスを立ち上げ
 docker compose up

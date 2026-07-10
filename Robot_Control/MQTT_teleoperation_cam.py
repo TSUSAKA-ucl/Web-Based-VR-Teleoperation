@@ -1,6 +1,7 @@
 import sys
 import time
 import numpy as np
+from constants import TIME_OFFSET_PATH
 from MQTT.MQTT_Client import MQTT_Client
 from pymycobot.mycobot280 import MyCobot280  # import mycobot library,if don't have, first 'pip install pymycobot'
 
@@ -10,7 +11,7 @@ if __name__ == "__main__":
     mode = "local"
     client = MQTT_Client(arm_topic, mode)
 
-    vr_time_offset = np.load("time_offset.npy")
+    vr_time_offset = np.load(TIME_OFFSET_PATH)
     client.set_time_offset(vr_time_offset)
 
     try:

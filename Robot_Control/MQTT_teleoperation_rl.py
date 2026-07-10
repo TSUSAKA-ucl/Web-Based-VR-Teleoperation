@@ -9,8 +9,8 @@ from MQTT.MQTT_Client import MQTT_Client
 import modern_robotics as mr
 # import pandas as pd
 
+from constants import TIME_OFFSET_PATH
 import MQTT.mqtt_common_opt
-
 
 # To run the code, activate can bus at first: bash can_activate.sh can0 1000000
 
@@ -61,10 +61,6 @@ if __name__ == "__main__":
         print("Please specify either --right_arm or --left_arm")
         sys.exit(1)
     
-    # ROBOT_TYPE = os.getenv("ROBOT_TYPE","piper_right")
-    # ROBOT_UUID = os.getenv("ROBOT_UUID","MA100101000019005100402")
-    # ROBOT_TYPE = os.getenv("ROBOT_TYPE","piper_left")
-    # ROBOT_UUID = os.getenv("ROBOT_UUID","MA100101000019005100010")
     if lr_name == "right":
         ROBOT_TYPE = os.getenv("ROBOT_TYPE", "piper_right")
         ROBOT_UUID = os.getenv("ROBOT_UUID", "MA100101000019005100402")
@@ -190,7 +186,7 @@ if __name__ == "__main__":
             time_offset = time_robot_recv - (time_vr_pub + ping_init)
             print("time_offset:", time_offset)
             client.set_time_offset(time_offset)
-            np.save('time_offset.npy', time_offset)
+            np.save(TIME_OFFSET_PATH, time_offset)
 
             robot_state_msg = {
                 "time": time_robot_recv,

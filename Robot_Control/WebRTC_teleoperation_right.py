@@ -5,6 +5,8 @@ from WebRTC.WebRTC_Client import CustomMessaging
 import modern_robotics as mr
 import pandas as pd
 
+from constants import TIME_OFFSET_PATH
+
 def main():
     """
     WebRTC Client Setting
@@ -24,7 +26,7 @@ def main():
         metadata=metadata
     )
 
-    time_offset = np.load("time_offset.npy")
+    time_offset = np.load(TIME_OFFSET_PATH)
     messaging_recv.set_vr_time_offset(time_offset)
 
     shm_name = "RightArm"

@@ -4,6 +4,7 @@ import numpy as np
 from PiPER.PIPERControl import PIPERControl
 from Modern_Robotics.ModernRoboticsIK import ModernRoboticsIK
 from WebRTC.YOLOSegPose import YOLOSegPose
+from constants import TIME_OFFSET_PATH
 from MQTT.MQTT_Client import MQTT_Client
 from WebRTC.WebRTC_Client import StereoSender
 import cv2
@@ -64,7 +65,7 @@ name_sh = "RightArm"
 arm_topic = 'right/'
 client = MQTT_Client(arm_topic, "local")
 
-vr_time_offset = np.load("time_offset.npy")
+vr_time_offset = np.load(TIME_OFFSET_PATH)
 client.set_time_offset(vr_time_offset)
 
 undist = Undistortion()
