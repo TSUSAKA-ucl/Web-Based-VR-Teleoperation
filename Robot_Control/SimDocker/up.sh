@@ -6,6 +6,13 @@ then echo "cannot get this script's directory" 1>&2
      exit 1
 fi
 
+if [ -f ~/.local/share/mkcert/rootCA.pem ] && \
+       [ -f ../MQTT/rootCA.pem ] && \
+       ! diff -q ~/.local/share/mkcert/rootCA.pem \
+	 ../MQTT/rootCA.pem >/dev/null 2>&1
+then cp -f ~/.local/share/mkcert/rootCA.pem ../MQTT/rootCA.pem
+fi
+
 PKG_NAME=$(cd `git rev-parse --show-toplevel` && \
 	       [ -f ./package.json ] && \
 	       node -pe 'require("./package.json").name')

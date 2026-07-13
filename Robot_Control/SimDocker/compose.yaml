@@ -6,12 +6,12 @@
 services:
   # 4. CoppeliaSim
   coppeliasim:
-    image: coppeliasim-ubuntu24
+    image: ghcr.io/ucl-nuee/coppeliasim-ubuntu24
     container_name: coppelia_container
     entrypoint: /opt/CoppeliaSim_Edu_V4_9_0_rev6_Ubuntu24_04/coppeliaSim
     command: ["-GpreferredSandboxLang=python", "-f/shared/piper_robot_sample.ttt", "-s0"]
-    ports:
-      - "23000-23500:23000-23500"
+    # ports:
+    #   - "23000-23500:23000-23500" # このcomposeのclientが接続するだけなので不要
     volumes:
       - /etc/passwd:/etc/passwd:ro
       - /etc/group:/etc/group:ro
@@ -43,13 +43,15 @@ services:
     volumes:
       - ..:/app:ro
       - python_packages:/usr/local/lib/python3.11/site-packages
-      - liu_shared_data:/var/run/network-delay
+      - liu_shared_data:/mnt/shared/liu_shared_data
+    # user: "${UID:-1000}:${GID:-1000}"
     working_dir: /app
     environment:
       - ROBOT_TYPE=${ROBOT_TYPE}
       - ROBOT_UUID=${ROBOT_UUID}
       - MQTT_BROKER=${MQTT_BROKER}
       - PYTHONUNBUFFERED=1
+      - TIME_OFFSET_PATH=/mnt/shared/liu_shared_data/time_offset.txt
     # 「echo wait 10s && sleep 10」を削除し、インストール後すぐに実行できるように修正
     command: ["-c", "pip install -r requirements.txt && python3 MQTT_teleoperation_rl.py --simulation --coppelia_host=coppeliasim --right_arm --host=${MQTT_BROKER}"]
     entrypoint: /usr/bin/bash

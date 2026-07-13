@@ -12,4 +12,9 @@ import os
 # ROBOT_TYPE = os.getenv("ROBOT_TYPE","piper_right")
 # ROBOT_UUID = os.getenv("ROBOT_UUID","MA100101000019005100402")
 
-TIME_OFFSET_PATH = os.getenv("TIME_OFFSET_PATH", "/var/run/network-delay/time_offset.npy")
+TIME_OFFSET_PATH = os.getenv("TIME_OFFSET_PATH", f"/run/user/{os.getuid()}/time_offset.txt")
+# rootの場合/run/user/0は無いがコンテナ内なので気にしないこととする
+# composeで起動する場合 TIME_OFFSET_PATH=/mnt/share/time_offset.txt のように指定する
+if not os.path.exists(os.path.dirname(TIME_OFFSET_PATH)):
+    os.makedirs(os.path.dirname(TIME_OFFSET_PATH), exist_ok=True)
+

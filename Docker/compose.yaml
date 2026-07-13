@@ -5,7 +5,7 @@
 services:
   # 1. ブローカー (Mosquitto)
   mosquitto:
-    image: eclipse-mosquitto:latest
+    image: eclipse-mosquitto
     container_name: mqtt_broker
     ports:
       - "8883:8883"
@@ -21,11 +21,21 @@ services:
     command: sh -c "mosquitto -c ./config/mosquitto-container.conf"
     user: "${UID:-1000}:${GID:-1000}" # run.shでUIDとGIDを設定している場合はそれを使用
     healthcheck:
-      test: ["CMD-SHELL", "nc -z -w 3 localhost 8333 || exit 1"]
+      # test: ["CMD-SHELL", "nc -z -w 3 localhost 8333 || exit 1"]
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -p 1883 -t 'health/check' -E || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 5
       start_period: 2s
+
+  # 【追加】ログ・トピック監視専用のコンテナ
+  mqtt_logger:
+    image: eclipse-mosquitto
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    command: mosquitto_sub -h mqtt_broker -p 1883 -t "#" -F "%t"
+    restart: always
 
   # 2. Python MQTT クライアント 
   python-client:

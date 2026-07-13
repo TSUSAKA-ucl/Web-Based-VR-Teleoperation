@@ -12,9 +12,9 @@ fi
 export GID=$(id -g)
 
 # サーバー用のcertsを../localcerts/にコピーする
-CertsDir=../localcerts
+[ "$CertsDir" = "" ] && CertsDir=../localcerts
 if [ ! -f "$CertsDir"/localhost.pem ] || [ ! -f "$CertsDir"/localhost-key.pem ]
-then "$CertsDir"/copy-certs.sh
+then "$CertsDir"/copy-certs.sh || exit 1
 fi
 
 # さらにcertをbroker用にコピーする
@@ -26,7 +26,7 @@ function cmp_and_copy() {
 	exit 1
     fi
 }
-CADir=../Robot_Control/MQTT
+[ "$CADir" = "" ] && CADir=../Robot_Control/MQTT
 BrokerCerts=../Mosquitto/config/certs/
 cmp_and_copy "$CertsDir"/localhost.pem "$BrokerCerts"/localcerts.pem
 cmp_and_copy "$CertsDir"/localhost-key.pem "$BrokerCerts"/localcerts-key.pem

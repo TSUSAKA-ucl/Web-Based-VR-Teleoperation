@@ -1,9 +1,75 @@
-## CAに関する注意
-	独自CAを使います。現在使用しているCAのcertは[`Robot_Control/MQTT/cert/rootCA.pem`](Robot_Control/MQTT/cert/rootCA.pem)です。サーバー認証用の鍵の実物については問い合わせてください。`localhost`及び`uclab-deskmeet-1`用のサーバー鍵は作成済です。サーバー鍵は`~/.local/share/ssl/`の下にあることにしています。[`./certificates/`](./certificates/)にcdして、[`./mklink.sh`](./certificates/mklink.sh)を実行しすると、そこにsymlinkを作成します。Next.jsのdevサーバーとMosquittoはそれを見に行きます。
+# このリポジトリについて
+オリジナルのWeb-Based VR Teleoperation Systemの
+[MetaworkMQTT manager](https://github.com/TSUSAKA-ucl/MetaworkMQTT.git)対応版です
+```
+git clone --recurse-submodules -b deskmeet `https://github.com/TSUSAKA-ucl/Web-Based-VR-Teleoperation.git
+```
+あるいは、普通に`deskmeet`ブランチをcloneしたあとに
+```
+git submodule update --init --recursive
+```
+でも構いません。さらにCAと認証鍵とdocker image:`ghcr.io/ucl-nuee/coppeliasim-ubuntu24:latest`が
+必要です(後述します)
 
-[`./Robot_Control/`](./Robot_Control/)の下のクライアントのPythonスクリプトは[`Robot_Control/MQTT/cert/rootCA.pem`](Robot_Control/MQTT/cert/rootCA.pem)を使います。[`MetaworkMQTT.py`managerクライアント](./Mosquitto/MetaworkMQTT/MetaworkMQTT.py)はこの版ではサーバー認証しませんがコマンドラインオプションでrootCAのcertを参照するようにします。
+# CAとホスト認証キーに関する注意
+
+　独自CAを使います。現在使用しているCAの公開鍵は[`Robot_Control/MQTT/rootCA.pem`](
+Robot_Control/MQTT/rootCA.pem)
+  です。サーバー認証用の鍵の実物については**問い合わせて**ください。
+  `localhost`及び`uclab-deskmeet-1`用のサーバー鍵は作成済です。サーバー
+  ホスト鍵は`~/.local/share/ssl/`の下に有るとしています。
+  [`./localcerts/`](./localcerts/)にcdして、
+  [`./copy-certs.sh`](./localcerts/copy-certs.sh)を実行しすると、そこ
+  からコピーを作成します。Next.jsのdevサーバー(`pnpm dev-mkcert`)と
+  Mosquittoはそれを見に行きます。
+
+[`./Robot_Control/`](./Robot_Control/)の下のクライアントのPythonスクリ
+プトはroot CAの公開鍵として[上記](Robot_Control/MQTT/rootCA.pem)
+を使います(`CA_CERTS_PATH`環境変数で変更できます)。[`MetaworkMQTT.py`managerクライアント](
+./Mosquitto/MetaworkMQTT/MetaworkMQTT.py)はこの版では同一composeのブリッジネットに居るので
+サーバー認証しませんが、PythonスクリプトのコマンドラインオプションではrootCAの公開鍵を参照することもできます。
 
 pemファイルの調べ方等は[こちらを見てください](./Robot_Control/MQTT/README.md)。
+
+# composeによる立ち上げ
+**WebRTC部分は未対応です**
+### 手順
+元々の Web-Based VR Teleoperation System の立ち上げ手順は複雑なので、
+2個の`docker compose`にまとめました。
+1. サーバー(クラウド)側: [`./Docker/compose.yaml`](./Docker/compose.yaml)  
+   MQTTブローカー, MetaworkMQTTマネージャー, Next.js devサーバー, MQTTトピック監視
+   ```
+   cd ./Docker/
+   ./up.sh
+   ```
+2. エッジ側: [`./Robot_Control/SimDocker/compose.yaml`](./Robot_Control/SimDocker/compose.yaml)  
+   CoppeliaSim, `MQTT_teleoperation_rl.py`
+   ```
+   cd ./Robot_Control/SimDocker/
+   ./up.sh
+   ```
+
+それぞれ、`compose.yaml`と同じディレクトリの`./up.sh`で立ち上がります。
+ブラウザでサーバーの3000番にアクセスするとCoppeliaSim内のPiPERを操作で
+きます。
+### 認証局とホスト鍵について
+サーバー側はCA(`rootCA.pem`)が無くても立ち上がります。
+CAからcertとkeyを作るのが面倒な場合
+`./certificates/`から`./localcerts/`にコピーしても動きますが他のclient
+が困るのでCAから作成することをお勧めします。
+エッジ側は前述のとおり[`Robot_Control/MQTT/rootCA.pem`](Robot_Control/MQTT/rootCA.pem)
+を使用しますが、もし`~/.local/share/mkcert/rootCA.pem`が存在していたら
+`./up.sh`で、それをコピーして使います。よって各人好きな自分のCAを使うことはできます。
+### CoppeliaSimのコンテナ
+**CoppeliaSim以外は**docker hubの公式イメージとバインドマウントだけで動かしています。
+CoppeliaRobotics社製のCoppeliaSimの公式コンテナイメージはdocker hubには**ありません**。
+CoppeliaRobotics社公式のgithubリポジトリに[コンテナ作成用のリポジトリ](
+https://github.com/CoppeliaRobotics/docker-image-coppeliasim.git)があります
+githubの`ucl-nuee`organizationのpackageに `ghcr.io/ucl-nuee/coppeliasim-ubuntu24:latest` を
+作成して置いておきました。`docker login ghcr.io`して
+`docker pull ghcr.io/ucl-nuee/coppeliasim-ubuntu24:latest`すればpullできますが、
+login出来なければ上記リポジトリをcloneして`./build.sh`して`docker tag`で同名のタグを付ければ
+問題ありません
 
 # Web-Based VR Teleoperation System
 
