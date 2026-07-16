@@ -1,3 +1,4 @@
+import numpy as np
 from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 
 # constructorのオプション引数でcoppeliaSimサーバーのIP,FQDNを入れる
@@ -8,6 +9,7 @@ class CoppeliasimControl:
         self.sim = copp_client.getObject('sim')
         self.joint_handles = [self.sim.getObject(joint_name) for joint_name in joint_name_list]
         self.tool_handles = [self.sim.getObject(tool_name) for tool_name in tool_name_list]
+        self.joint_offset_agilex = [0, + np.radians(90), - np.radians(170), 0, 0, 0]
 
     def send_joint_position(self, thetaBody):
         for i, handle in enumerate(self.joint_handles):
@@ -25,6 +27,15 @@ class CoppeliasimControl:
         joint_position = [self.sim.getJointPosition(handle) for handle in self.joint_handles]
         return joint_position
 
+    def get_joint_position_agilex(self):
+        joint_position = [self.sim.getJointPosition(handle) for handle in self.joint_handles]
+        joint_position = [joint_position[i] + self.joint_offset_agilex[i] for i in range(len(joint_position))]
+        return joint_position
+
+    def send_joint_position_agilex(self, thetaBody):
+        thetaBody = [thetaBody[i] - self.joint_offset_agilex[i] for i in range(len(thetaBody))]
+        for i, handle in enumerate(self.joint_handles):
+            self.sim.setJointTargetPosition(handle, thetaBody[i])
 
 joint_list = ['/piper/joint1', '/piper/joint2', '/piper/joint3', '/piper/joint4', '/piper/joint5', '/piper/joint6']
 tool_list = ['/piper/joint7', '/piper/joint8']

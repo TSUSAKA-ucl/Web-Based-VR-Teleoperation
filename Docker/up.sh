@@ -32,10 +32,11 @@ cmp_and_copy "$CertsDir"/localhost.pem "$BrokerCerts"/localcerts.pem
 cmp_and_copy "$CertsDir"/localhost-key.pem "$BrokerCerts"/localcerts-key.pem
 cmp_and_copy "$CADir"/rootCA.pem "$BrokerCerts"/rootCA.pem
 
-# MQTT client(MetaworkMQTT.py)用にホストのIPを取り出す
-# HOSTIP=`ip route get 8.8.8.8 | sed 's/^.*src \+\([0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+\) *.*$/\1/;t;d'`
-# export HOSTIP
-# MetaworkMQTT.pyは同じcomposeネットワーク内のMosquittoコンテナに接続するので、ホストIPは不要になった。
-
+# $1が存在すればそこをNext.jsのパッケージルートとしてNEXT_PKG環境変数にセットする
+if [ "$1" != "" ] && [ -d "$1" ]; then
+    export NEXT_PKG="$1"
+    shift
+fi
 # Docker Compose で全サービスを立ち上げ
-docker compose up
+# docker compose up mqtt_logger nextjs-dev
+docker compose up "$@"

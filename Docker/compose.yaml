@@ -22,7 +22,8 @@ services:
     user: "${UID:-1000}:${GID:-1000}" # run.shでUIDとGIDを設定している場合はそれを使用
     healthcheck:
       # test: ["CMD-SHELL", "nc -z -w 3 localhost 8333 || exit 1"]
-      test: ["CMD-SHELL", "mosquitto_sub -h localhost -p 1883 -t 'health/check' -E || exit 1"]
+      # test: ["CMD-SHELL", "mosquitto_sub -h localhost -p 1883 -t 'health/check' -E || exit 1"]
+      test: ["CMD-SHELL", "mosquitto_pub -h localhost -p 1883 -t 'health/check' -m 'ping' || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -30,6 +31,8 @@ services:
 
   # 【追加】ログ・トピック監視専用のコンテナ
   mqtt_logger:
+    profiles:
+      - skip-default
     image: eclipse-mosquitto
     depends_on:
       mosquitto:
@@ -65,12 +68,14 @@ services:
 
   # 3. Next.js 開発サーバー
   nextjs-dev:
+    profiles:
+      - skip-default
     image: node:22-alpine
     container_name: nextjs_dev_https_server
     ports:
       - "3000:3000"
     volumes:
-      - ..:/app
+      - ${NEXT_PKG:-..}:/app
       - liu-teleop-node-modules:/app/node_modules
       - /app/.next
       - /app/.pnpm-store

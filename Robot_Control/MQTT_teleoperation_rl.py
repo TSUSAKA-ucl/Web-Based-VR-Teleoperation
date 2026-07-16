@@ -21,6 +21,10 @@ if __name__ == "__main__":
     parser = MQTT.mqtt_common_opt.add_common_opts(parser)
     # 追加のオプション "can0", "can1" (-c "can0")選択, "right"(-r), "left"(-l)排他的選択
     parser.add_argument(
+        "-L", "--Liu", action="store_true",
+        help="Liu version topic payload's keys"
+    )
+    parser.add_argument(
         "-c", "--can_port", type=str, default="None",
         help="CAN port for PiPER (default: can0)"
     )
@@ -49,14 +53,17 @@ if __name__ == "__main__":
     # msg_key_state
     # msg_key_model
     # msg_key_jf
+    liu = parser.parse_args().Liu
     if lr_name == "right":
         msg_key_state = "state"
         msg_key_model = "model"
-        msg_key_jf = "joint_feedback"
+        msg_key_jf = "joint_feedback" if liu else "joints"
+        ext_value = "right/joint"
     elif lr_name == "left":
-        msg_key_state = "state_left"
-        msg_key_model = "model_left"
-        msg_key_jf = "joint_feedback_left"
+        msg_key_state = "state_left" if liu else "state"
+        msg_key_model = "model_left" if liu else "model"
+        msg_key_jf = "joint_feedback_left" if liu else "joints"
+        ext_value = "left/joint"
     else:
         print("Please specify either --right_arm or --left_arm")
         sys.exit(1)
@@ -89,7 +96,8 @@ if __name__ == "__main__":
         tool_list = ['/piper/joint7', '/piper/joint8']
         sim = CoppeliasimControl(joint_list, tool_list,
                                  ip_address=parser.parse_args().coppelia_host)
-        joint_read_func = sim.get_joint_position
+        joint_read_func = sim.get_joint_position if liu else sim.get_joint_position_agilex
+        joint_set_func = sim.send_joint_position if liu else sim.send_joint_position_agilex
     else:
         can_port = parser.parse_args().can_port
         if can_port == "None":
@@ -104,7 +112,8 @@ if __name__ == "__main__":
         piper.connect()
         time.sleep(1)
         name = lr_name + "_arm"
-        joint_read_func = piper.get_joint_feedback_mr
+        joint_read_func = piper.get_joint_feedback_mr if liu else piper.get_joint_feedback
+        joint_set_func = piper.joint_control_offset if liu else piper.joint_control
 
     # Control Parameter
     Tf = 0.025
@@ -143,6 +152,7 @@ if __name__ == "__main__":
             msg_key_state: "initialize",
             msg_key_model: "agilex_piper",
             msg_key_jf: joint_feedback,
+            "ext": ext_value,
         }
         client.publish_message(robot_state_msg)
         print("time_robot_pub", time_robot_pub)
@@ -150,7 +160,9 @@ if __name__ == "__main__":
         print("shared memory:", arr)
         a = arr[0:6]
         b = arr[8:14]
-        equal = np.allclose(a, b)
+        # equal = np.allclose(a, b)
+        # aとbの差の全てが±0.01以内ならばequal=Trueとする
+        equal = np.all(np.abs(a - b) < 0.01)
 
         equal_count = 0
         print_timer = 0
@@ -158,7 +170,8 @@ if __name__ == "__main__":
         while not equal:
             a = arr[0:6]
             b = arr[8:14]
-            equal = np.allclose(a, b)
+            # equal = np.allclose(a, b)
+            equal = np.all(np.abs(a - b) < 0.01)
             time.sleep(0.010)
             equal_count += 0.010
             print_timer += 0.010
@@ -191,6 +204,8 @@ if __name__ == "__main__":
             robot_state_msg = {
                 "time": time_robot_recv,
                 msg_key_state: "ready",
+                msg_key_model: "agilex_piper",
+                "ext": ext_value,
             }
             client.publish_message(robot_state_msg)
         print("Real  Robot:", a)
@@ -213,14 +228,17 @@ if __name__ == "__main__":
             thetaTool = arr[15].astype(float)
 
             if use_simulation:
-                sim.send_joint_position(thetaBody)
+                # sim.send_joint_position(thetaBody)
+                joint_set_func(thetaBody)
                 sim.send_tool_position(thetaTool)
-                joint_position = sim.get_joint_position()
+                # joint_position = sim.get_joint_position()
+                joint_position = joint_read_func()
                 time.sleep(0.0165)
 
             else:
                 # Get joint feedback
-                joint_feedback = piper.get_joint_feedback_mr()
+                # joint_feedback = piper.get_joint_feedback_mr()
+                joint_feedback = joint_read_func()
                 joint_feedback = [round(x, 4) for x in joint_feedback]
                 joint_feedback = np.array(joint_feedback)
                 arr[0:6] = joint_feedback
@@ -242,7 +260,8 @@ if __name__ == "__main__":
                                                     theta_target, Tf, N,
                                                     method)
                     for theta in theta_traj:
-                        piper.joint_control_offset(theta, 60)
+                        # piper.joint_control_offset(theta, 60)
+                        joint_set_func(theta)
                         finger_pos = ((thetaTool) * 0.85) + 0.4  # /mm
                         piper.gripper_control(finger_pos, 1000)
                         time.sleep(dt)
