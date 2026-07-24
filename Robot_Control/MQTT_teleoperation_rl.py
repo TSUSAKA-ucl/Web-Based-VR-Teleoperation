@@ -261,7 +261,7 @@ if __name__ == "__main__":
                                                     method)
                     for theta in theta_traj:
                         # piper.joint_control_offset(theta, 60)
-                        joint_set_func(theta)
+                        joint_set_func(theta, 60)
                         finger_pos = ((thetaTool) * 0.85) + 0.4  # /mm
                         piper.gripper_control(finger_pos, 1000)
                         time.sleep(dt)
