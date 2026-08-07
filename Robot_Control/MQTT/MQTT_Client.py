@@ -44,7 +44,11 @@ default_args = {
 # ROBOT_UUID = os.getenv("ROBOT_UUID","MA100101000019005100010")
 
 
-
+# 現在 control/right/joint, control/right/toolのように3rd levelの名前が
+# ベタ書きされているがthird_level_listのように一般化して管理するほうが良い
+# PiPERは1DOF toolで self.pose[15]に値をいれるだけだが、Unitreeハンド等は3+2+2軸あり
+# この方法で行くなら control/right/thumb,control/right/index,control/right/middle
+# のようにすべきだろう
 class MQTT_Client():
     MQTT_DEVICE_TOPIC_HDR = "dev"
     MGR_REGISTER_TOPIC = "mgr/register"

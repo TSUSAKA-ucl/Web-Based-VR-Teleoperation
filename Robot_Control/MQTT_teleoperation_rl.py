@@ -58,12 +58,15 @@ if __name__ == "__main__":
         msg_key_state = "state"
         msg_key_model = "model"
         msg_key_jf = "joint_feedback" if liu else "joints"
+        
         ext_value = "right/joint"
+        ext_tool = "right/tool"
     elif lr_name == "left":
         msg_key_state = "state_left" if liu else "state"
         msg_key_model = "model_left" if liu else "model"
         msg_key_jf = "joint_feedback_left" if liu else "joints"
         ext_value = "left/joint"
+        ext_tool = "left/tool"
     else:
         print("Please specify either --right_arm or --left_arm")
         sys.exit(1)
@@ -154,7 +157,15 @@ if __name__ == "__main__":
             msg_key_jf: joint_feedback,
             "ext": ext_value,
         }
+        tool_state_msg = {
+            "time": time_robot_pub,
+            msg_key_state: "initialize",
+            msg_key_model: "agilex_piper",
+            msg_key_jf: joint_feedback,
+            "ext": ext_tool,
+        }
         client.publish_message(robot_state_msg)
+        client.publish_message(tool_state_msg)
         print("time_robot_pub", time_robot_pub)
 
         print("shared memory:", arr)
@@ -181,6 +192,7 @@ if __name__ == "__main__":
                 print(" Real  Robot:", ["%8.4f" % x for x in a])
                 print(" WebVR Robot:", ["%8.4f" % x for x in b])
                 client.publish_message(robot_state_msg)
+                client.publish_message(tool_state_msg)
                 print("publish robot_state_msg:", robot_state_msg)
                 print_timer = 0
             if equal_count > 600.0:  # 10 minutes
@@ -207,7 +219,14 @@ if __name__ == "__main__":
                 msg_key_model: "agilex_piper",
                 "ext": ext_value,
             }
+            tool_state_msg = {
+                "time": time_robot_recv,
+                msg_key_state: "ready",
+                msg_key_model: "agilex_piper",
+                "ext": ext_tool,
+            }
             client.publish_message(robot_state_msg)
+            client.publish_message(tool_state_msg)
         print("Real  Robot:", a)
         print("WebVR Robot:", b)
         if equal:
@@ -276,6 +295,7 @@ if __name__ == "__main__":
             "state": "stop",
         }
         client.publish_message(robot_state_msg)
+        client.publish_message(robot_state_msg)
         client.close_shared_memory(name)
         sys.exit(0)
     except Exception as e:
@@ -283,6 +303,7 @@ if __name__ == "__main__":
         robot_state_msg = {
             "state": "error",
         }
+        client.publish_message(robot_state_msg)
         client.publish_message(robot_state_msg)
         client.close_shared_memory(name)
         sys.exit(1)
