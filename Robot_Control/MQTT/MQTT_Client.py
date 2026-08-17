@@ -4,6 +4,7 @@ import ssl
 import time
 import multiprocessing.shared_memory as sm
 from datetime import datetime
+import threading
 import numpy as np
 from paho.mqtt import client as mqtt
 from . import mqtt_common_opt
@@ -49,6 +50,12 @@ default_args = {
 # PiPERは1DOF toolで self.pose[15]に値をいれるだけだが、Unitreeハンド等は3+2+2軸あり
 # この方法で行くなら control/right/thumb,control/right/index,control/right/middle
 # のようにすべきだろう
+
+# paho.mqttのmulti threadに対応するため self.lockを定義する
+# self.poseが本クラスの外側からのアクセス用変数なのでlockする
+# 8:15などは名前をつけたスライスにする
+VIRTUTAL_JOINT_SLICE = slice(8, 15)
+VIRTUTAL_TOOL_INDEX = 15
 class MQTT_Client():
     MQTT_DEVICE_TOPIC_HDR = "dev"
     MGR_REGISTER_TOPIC = "mgr/register"
@@ -77,6 +84,7 @@ class MQTT_Client():
 
         self.time_vr_pub = 0
 
+        self.lock = threading.Lock()
         self.pose = np.zeros(16)
 
         self.shared_signal = 0 # shared_control_signal
@@ -177,7 +185,8 @@ class MQTT_Client():
             js_msg = json.loads(msg.payload)
             joints = js_msg['joint']
             thetaBody = [joints[i] if i < len(joints) else 0 for i in range(7)]
-            self.pose[8:15] = thetaBody
+            with self.lock:
+                self.pose[VIRTUTAL_JOINT_SLICE] = thetaBody
 
             if self.time_vr_pub != js_msg["timestamp"]:
                 current_time = int(time.time()*1000)
@@ -192,7 +201,8 @@ class MQTT_Client():
             js_msg = json.loads(msg.payload)
             js_tool = js_msg['tool']
             thetaTool = js_tool
-            self.pose[15] = thetaTool
+            with self.lock:
+                self.pose[VIRTUTAL_TOOL_INDEX] = thetaTool
 
         elif msg.topic == self.MQTT_SHARE_TOPIC:
             js_share = json.loads(msg.payload)
@@ -206,12 +216,14 @@ class MQTT_Client():
     def create_shared_memory(self, name_shared_memory):
         try:
             self.sm = sm.SharedMemory(name_shared_memory, create=True, size=16 * 4)
-            self.pose = np.ndarray((16,), dtype=np.float32, buffer=self.sm.buf)
-            self.pose[:] = 0
+            with self.lock:
+                self.pose = np.ndarray((16,), dtype=np.float32, buffer=self.sm.buf)
+                self.pose[:] = 0
             print(f"Shared memory {name_shared_memory} created.")
         except FileExistsError:
             self.sm = sm.SharedMemory(name_shared_memory)
-            self.pose = np.ndarray((16,), dtype=np.float32, buffer=self.sm.buf)
+            with self.lock:
+                self.pose = np.ndarray((16,), dtype=np.float32, buffer=self.sm.buf)
             print(f"Shared memory {name_shared_memory} already exists.")
 
     def write_shared_memory(self, name_shared_memory, data=None):

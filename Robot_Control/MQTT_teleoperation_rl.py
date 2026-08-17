@@ -132,6 +132,10 @@ if __name__ == "__main__":
     # columns = ['delay']
     # csv_path = f'Delay_MQTT_{record_timestamp}.csv'
 
+    # slice部分に名前をつける
+    VIRTUAL_JOINT_SLICE = slice(8, 14)  # 仮想関節のスライス
+    VIRTUAL_TOOL_INDEX = 15  # 仮想ツールのインデックス
+    REAL_JOINT_SLICE = slice(0, 6)  # 実関節のスライス
     try:
         client.create_shared_memory(name)
         client.start_mqtt()
@@ -140,13 +144,18 @@ if __name__ == "__main__":
         """
         Check Robot State
         """
+        # client.poseはNumpy配列だが、paho.mqttのon_messageの別スレッドと共有され
+        # 排他処理を行う必要があるためコードを修正する
+        # clientクラスオブジェクトにclient.lockという名のlockが存在することとする
         # Update joint message
         arr = client.pose
-        thetaBody = arr[8:14].astype(float)  # 6Dof robot
-        thetaTool = arr[15].astype(float)
+        with client.lock:
+            thetaBody = arr[VIRTUAL_JOINT_SLICE].astype(float)  # 6Dof robot
+            thetaTool = arr[VIRTUAL_TOOL_INDEX].astype(float)
 
         joint_feedback = joint_read_func()
-        arr[0:6] = joint_feedback
+        with client.lock:
+            arr[REAL_JOINT_SLICE] = joint_feedback
 
         # Send robot current state to MQTT
         time_robot_pub = int(time.time()*1000)
@@ -168,29 +177,33 @@ if __name__ == "__main__":
         client.publish_message(tool_state_msg)
         print("time_robot_pub", time_robot_pub)
 
-        print("shared memory:", arr)
-        a = arr[0:6]
-        b = arr[8:14]
-        # equal = np.allclose(a, b)
-        # aとbの差の全てが±0.01以内ならばequal=Trueとする
-        equal = np.all(np.abs(a - b) < 0.01)
+        with client.lock:
+            tmp_arr = arr.copy()
+        print("shared memory:", tmp_arr)
+        with client.lock:
+            # a = arr[0:6]
+            # b = arr[8:14]
+            # equal = np.allclose(a, b)
+            # aとbの差の全てが±0.01以内ならばequal=Trueとする
+            equal = np.all(np.abs(arr[REAL_JOINT_SLICE] - arr[VIRTUAL_JOINT_SLICE]) < 0.01)
 
         equal_count = 0
         print_timer = 0
         print("##### enter while loop waiting for equal #####")
         while not equal:
-            a = arr[0:6]
-            b = arr[8:14]
-            # equal = np.allclose(a, b)
-            equal = np.all(np.abs(a - b) < 0.01)
+            with client.lock:
+                equal = np.all(np.abs(arr[REAL_JOINT_SLICE] - arr[VIRTUAL_JOINT_SLICE]) < 0.01)
             time.sleep(0.010)
             equal_count += 0.010
             print_timer += 0.010
             if print_timer >= 5.0:
                 print(f"Waiting for equal... {equal_count:.2f} seconds elapsed")
                 # aとbを%8.4fで表示
-                print(" Real  Robot:", ["%8.4f" % x for x in a])
-                print(" WebVR Robot:", ["%8.4f" % x for x in b])
+                with client.lock:
+                    tmp_a = arr[REAL_JOINT_SLICE].copy()
+                    tmp_b = arr[VIRTUAL_JOINT_SLICE].copy()
+                print(" Real  Robot:", ["%8.4f" % x for x in tmp_a])
+                print(" WebVR Robot:", ["%8.4f" % x for x in tmp_b])
                 client.publish_message(robot_state_msg)
                 client.publish_message(tool_state_msg)
                 print("publish robot_state_msg:", robot_state_msg)
@@ -236,7 +249,8 @@ if __name__ == "__main__":
 
         while equal:
             # Update joint message
-            thetaBody = arr[8:14].astype(float)  # 6Dof robot
+            with client.lock:
+                thetaBody = arr[VIRTUAL_JOINT_SLICE].astype(float)  # 6Dof robot
             thetaBody = [round(x, 4) for x in thetaBody]
             thetaBody = np.array(thetaBody)
 
@@ -244,7 +258,8 @@ if __name__ == "__main__":
             # df = pd.DataFrame([[client.ping]], columns=columns)
             # df.to_csv(csv_path, mode='a', header=False, index=False)
 
-            thetaTool = arr[15].astype(float)
+            with client.lock:
+                thetaTool = arr[VIRTUAL_TOOL_INDEX].astype(float)
 
             if use_simulation:
                 # sim.send_joint_position(thetaBody)
@@ -260,7 +275,8 @@ if __name__ == "__main__":
                 joint_feedback = joint_read_func()
                 joint_feedback = [round(x, 4) for x in joint_feedback]
                 joint_feedback = np.array(joint_feedback)
-                arr[0:6] = joint_feedback
+                with client.lock:
+                    arr[REAL_JOINT_SLICE] = joint_feedback
 
                 error = thetaBody - joint_feedback
                 d_error = (error - prev_error) / Tf
