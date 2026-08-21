@@ -42,7 +42,7 @@ class PIPERControl:
         self.piper.ConnectPort()
         self.enable_fun()
 
-    def joint_control(self, joint_position, joint_speed):
+    def joint_control(self, joint_position: np.ndarray, joint_speed: float):
         factor = self.joint_factor
         joint_0 = round(joint_position[0] * factor)
         joint_1 = round(joint_position[1] * factor)

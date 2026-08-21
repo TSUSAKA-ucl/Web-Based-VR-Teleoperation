@@ -18,7 +18,7 @@ symlinkにしておけば書き換えられることなく認識することは�
 
 * 何(DNS, IP)を認証しているか調べるとき
   ```
-  openssl x509 -in my-server-cert.pem -text -noout | grep -A 10 "Subject Alternative Name"
+  openssl x509 -in my-server-cert.pem -text -noout | grep -A3 "Subject Alternative Name"
   ```
 * 所定のroot CAでサインされていることを調べるとき  
   (このディレクトリの`rootCA.pem`を使用しています)

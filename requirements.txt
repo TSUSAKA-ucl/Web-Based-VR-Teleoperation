@@ -1,0 +1,12 @@
+argcomplete==1.8.1
+coppeliasim_zmqremoteapi_client==2.0.4
+matplotlib==3.5.1
+numpy==1.21.5
+opencv_python==4.13.0.92
+paho_mqtt==2.1.0
+pandas==3.0.3
+piper_sdk==0.6.1
+pymycobot==4.0.5
+python-dotenv==1.2.2
+sora_sdk==2024.3.0
+ultralytics==8.4.53

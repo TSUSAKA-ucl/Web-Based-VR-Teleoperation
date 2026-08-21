@@ -1,3 +1,5 @@
+NoUse/
+Robot_Control/Test/
 __pycache__/
 *.pyc
 *.npy

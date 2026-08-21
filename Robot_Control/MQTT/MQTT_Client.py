@@ -8,13 +8,16 @@ import threading
 import numpy as np
 from paho.mqtt import client as mqtt
 from . import mqtt_common_opt
+from .edge_state import EdgeState
 
 # CA_CERTS_PATH = os.path.join(os.path.dirname(__file__), "certs")
 # 自分のhomeの .local/share/mkcert/にあるrootCA.pemを使わずに
 # 環境変数からパスを取得し無ければこのスクリプトのディレクトリにあるrootCA.pem
 # を使用する
 # CA_CERTS_PATH = os.path.expanduser("~/.local/share/mkcert/rootCA.pem")
-CA_CERTS_PATH = os.getenv("CA_CERTS_PATH", os.path.join(os.path.dirname(__file__), "rootCA.pem"))
+CA_CERTS_PATH = os.getenv(
+    "CA_CERTS_PATH", os.path.join(os.path.dirname(__file__), "rootCA.pem")
+)
 print("CA_CERTS_PATH:", CA_CERTS_PATH)
 # For register
 # import os
@@ -56,9 +59,13 @@ default_args = {
 # 8:15などは名前をつけたスライスにする
 VIRTUTAL_JOINT_SLICE = slice(8, 15)
 VIRTUTAL_TOOL_INDEX = 15
-class MQTT_Client():
+
+
+class MQTT_Client:
     MQTT_DEVICE_TOPIC_HDR = "dev"
     MGR_REGISTER_TOPIC = "mgr/register"
+    MGR_UNREGISTER_TOPIC = "mgr/unregister"
+
     def __init__(self, arm, mode="local", args=default_args):
         self.args = args
         self.joint_topic = arm + 'joint/'
@@ -67,8 +74,8 @@ class MQTT_Client():
 
         self.ROBOT_TYPE = self.args.get("robot_type", "piper_right")
         self.ROBOT_UUID = self.args.get("robot_uuid", "MA1001010000190050100402")
-        # self.MQTT_RECV_TOPIC = f"{self.MQTT_DEVICE_TOPIC_HDR}/{self.ROBOT_UUID}"
-        self.MQTT_RECV_TOPIC = f"{self.MQTT_DEVICE_TOPIC_HDR}/+"
+        self.DEV_ACQUIRE_TOPIC = f"{self.MQTT_DEVICE_TOPIC_HDR}/{self.ROBOT_UUID}"
+        # self.DEV_RECV_TOPIC = f"{self.MQTT_DEVICE_TOPIC_HDR}/+"
         self.USER_UUID = None
 
         self.time_vr_robot_offset = 0
@@ -85,12 +92,13 @@ class MQTT_Client():
         self.time_vr_pub = 0
 
         self.lock = threading.Lock()
+        self.state = EdgeState.INIT
         self.pose = np.zeros(16)
 
         self.shared_signal = 0 # shared_control_signal
         self.shared_control_flag = 0
         self.subscription_list = []
-        
+
         self.client = mqtt.Client(
                 callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
                 transport="websockets")
@@ -99,9 +107,15 @@ class MQTT_Client():
         self.client.tls_set_context(context)
 
     def start_mqtt(self):
+        with self.lock:
+            self.state = EdgeState.STARTING
         print("MQTT Client starting...")
         # mqtt_common_opt.configure_tls(self.client)
-        print("MQTT Client connecting to:", self.args.get("host", MQTT_LOCAL_SERVER), ":", self.args.get("port", MQTT_LOCAL_PORT))
+        print(
+            "MQTT Client connecting to:",
+            self.args.get("host", MQTT_LOCAL_SERVER), ":",
+            self.args.get("port", MQTT_LOCAL_PORT),
+        )
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
         self.client.on_message = self.on_message
@@ -122,6 +136,8 @@ class MQTT_Client():
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
         print("###### enter on_connect")
+        with self.lock:
+            self.state = EdgeState.REGISTRATION
         if reason_code != 0:
             print("Failed to connect, reason code:", reason_code)
             return
@@ -135,13 +151,51 @@ class MQTT_Client():
         }
         self.client.publish(self.MGR_REGISTER_TOPIC, json.dumps(my_info), qos=1)
         print("Publish robot registeration:", json.dumps(my_info))
-        self.client.message_callback_add(self.MQTT_RECV_TOPIC, self.on_recv_topic)
-        self.client.subscribe(self.MQTT_RECV_TOPIC)
+        self.client.message_callback_add(self.DEV_ACQUIRE_TOPIC, self.on_acquire_topic)
+        self.client.subscribe(self.DEV_ACQUIRE_TOPIC)
         self.subscribe_all_on_list()
+        # 現在はregistration完了のkeyを受け取る処理はないので、ここでstateをREGISTEREDにする
+        with self.lock:
+            self.state = EdgeState.REGISTERED
 
     def on_disconnect(self, client, userdata, rc):
         if rc != 0:
             print("Unexpected disconnection.")
+
+    def on_acquire_topic(self, client, userdata, msg):
+        try:
+            js_msg = json.loads(msg.payload.decode())
+            if (js_msg.get("devId", None) != None
+                and js_msg.get("controller", None) == "browser"):
+                from_dev_id = js_msg.get("devId", None)
+            else:
+                return
+
+            print(f"Received message from {from_dev_id} on topic {msg.topic}")
+            if from_dev_id and from_dev_id != self.USER_UUID:
+                print(
+                    f"------------------ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} -------------------"
+                )
+                print(f"## Capture New Control Request: {from_dev_id}")
+                # If old subscribe exists, unsubscribe
+                self.unsubscribe_all_on_list()
+                self.USER_UUID = from_dev_id
+                # Update topics with new USER_UUID
+                self.MQTT_CTRL_JOINT_TOPIC = (
+                    f"control/{self.joint_topic}{self.USER_UUID}"
+                )
+                self.MQTT_CTRL_TOOL_TOPIC = f"control/{self.tool_topic}{self.USER_UUID}"
+                self.MQTT_SHARE_TOPIC = f"share/{self.USER_UUID}"
+                self.subscription_list = [
+                    self.MQTT_CTRL_JOINT_TOPIC,
+                    self.MQTT_CTRL_TOOL_TOPIC,
+                    self.MQTT_SHARE_TOPIC,
+                ]
+                self.subscribe_all_on_list()
+            with self.lock:
+                self.state = EdgeState.ACQUIRED
+        except Exception as e:
+            print(f"XXX Subscribe {self.DEV_ACQUIRE_TOPIC} failed: {e}")
 
     def on_recv_topic(self, client, userdata, msg):
         try:
@@ -159,7 +213,7 @@ class MQTT_Client():
                 from_dev_id = topic_name[1]
             else:
                 return
-                
+
             print(f"Received message from {from_dev_id} on topic {msg.topic}")
             if from_dev_id and from_dev_id != self.USER_UUID:
                 print(f"------------------ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} -------------------")
@@ -175,15 +229,16 @@ class MQTT_Client():
                                            self.MQTT_CTRL_TOOL_TOPIC,
                                            self.MQTT_SHARE_TOPIC ]
                 self.subscribe_all_on_list()
+            with self.lock:
+                self.state = EdgeState.ACQUIRED
         except Exception as e:
-            print(f"XXX Subscribe {self.MQTT_RECV_TOPIC} failed: {e}")
-               
+            print(f"XXX Subscribe {self.DEV_ACQUIRE_TOPIC} failed: {e}")
 
     def on_message(self, client, userdata, msg):
         if msg.topic == self.MQTT_CTRL_JOINT_TOPIC:
             # Message ThetaBody
             js_msg = json.loads(msg.payload)
-            joints = js_msg['joint']
+            joints = js_msg["joint"]
             thetaBody = [joints[i] if i < len(joints) else 0 for i in range(7)]
             with self.lock:
                 self.pose[VIRTUTAL_JOINT_SLICE] = thetaBody
@@ -199,7 +254,7 @@ class MQTT_Client():
         elif msg.topic == self.MQTT_CTRL_TOOL_TOPIC:
             # Message ThetaTool
             js_msg = json.loads(msg.payload)
-            js_tool = js_msg['tool']
+            js_tool = js_msg["tool"]
             thetaTool = js_tool
             with self.lock:
                 self.pose[VIRTUTAL_TOOL_INDEX] = thetaTool
@@ -237,7 +292,9 @@ class MQTT_Client():
                 # Ensure data matches shape and dtype
                 data = np.array(data, dtype=np.float32)
                 if data.shape != pose.shape:
-                    raise ValueError(f"Shape mismatch: expected {pose.shape}, got {data.shape}")
+                    raise ValueError(
+                        f"Shape mismatch: expected {pose.shape}, got {data.shape}"
+                    )
 
                 # Write new values into shared memory (directly modifies memory)
                 pose[:] = data[:]
@@ -276,7 +333,7 @@ class MQTT_Client():
     def verify_shared_memory(self, name, expected_shape=(16,), dtype=np.float32):
         try:
             shm = sm.SharedMemory(name=name)
-            print("shm", shm )
+            print("shm", shm)
             arr = np.ndarray(expected_shape, dtype=dtype, buffer=shm.buf)
             # test
             _ = arr[0]
@@ -300,6 +357,20 @@ class MQTT_Client():
         # if self.USER_UUID:
         #     self.MQTT_ROBOT_STATE_TOPIC = f"robot/{self.USER_UUID}"
         #     self.client.publish(self.MQTT_ROBOT_STATE_TOPIC, json.dumps(payload_dict))
+
+    def unregister_message(self):
+        unregister_payload = {
+            "date": datetime.now().strftime("%c"),
+            "devType": "robot",
+            "type": self.ROBOT_TYPE,
+            "version": "0.1.1",
+            "devId": self.ROBOT_UUID,
+            "status": "unregister",
+        }
+        self.client.publish(
+            self.MGR_UNREGISTER_TOPIC, json.dumps(unregister_payload), qos=1
+        )
+        print("Publish robot unregistration:", json.dumps(unregister_payload))
 
     def set_time_offset(self, time_offset):
         self.time_vr_robot_offset = time_offset

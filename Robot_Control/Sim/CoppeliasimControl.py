@@ -11,7 +11,7 @@ class CoppeliasimControl:
         self.tool_handles = [self.sim.getObject(tool_name) for tool_name in tool_name_list]
         self.joint_offset_agilex = [0, + np.radians(90), - np.radians(170), 0, 0, 0]
 
-    def send_joint_position(self, thetaBody):
+    def send_joint_position(self, thetaBody: np.ndarray, _dummy: float = 0.0):
         for i, handle in enumerate(self.joint_handles):
             self.sim.setJointTargetPosition(handle, thetaBody[i])
 
@@ -32,8 +32,10 @@ class CoppeliasimControl:
         joint_position = [joint_position[i] + self.joint_offset_agilex[i] for i in range(len(joint_position))]
         return joint_position
 
-    def send_joint_position_agilex(self, thetaBody):
-        thetaBody = [thetaBody[i] - self.joint_offset_agilex[i] for i in range(len(thetaBody))]
+    def send_joint_position_agilex(self, thetaBody: np.ndarray, _dummy: float = 0.0):
+        # thetaBody = [thetaBody[i] - self.joint_offset_agilex[i] for i in range(len(thetaBody))]
+        for i in range(len(thetaBody)):
+            thetaBody[i] = thetaBody[i] - self.joint_offset_agilex[i]
         for i, handle in enumerate(self.joint_handles):
             self.sim.setJointTargetPosition(handle, thetaBody[i])
 
