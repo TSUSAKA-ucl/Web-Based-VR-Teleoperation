@@ -3,7 +3,7 @@ import json
 import ssl
 import time
 import multiprocessing.shared_memory as sm
-from datetime import datetime
+from datetime import datetime, timezone
 import threading
 import numpy as np
 from paho.mqtt import client as mqtt
@@ -143,7 +143,7 @@ class MQTT_Client:
             return
         # For register
         my_info = {
-            "date": datetime.now().strftime('%c'),
+            "date": datetime.now(timezone.utc).isoformat(),
             "devType": "robot",
             "type": self.ROBOT_TYPE,
             "version": "0.1.1",
@@ -360,7 +360,7 @@ class MQTT_Client:
 
     def unregister_message(self):
         unregister_payload = {
-            "date": datetime.now().strftime("%c"),
+            "date": datetime.now(timezone.utc).isoformat(),
             "devType": "robot",
             "type": self.ROBOT_TYPE,
             "version": "0.1.1",

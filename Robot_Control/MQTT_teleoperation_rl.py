@@ -291,7 +291,7 @@ if __name__ == "__main__":
 
             while equal:  # running state: Main Control Loop
                 print_timer += dt
-                if print_timer >= 3.0:
+                if print_timer >= 0.3:
                     print_timer = 0
                 # Update joint message
                 with client.lock:
@@ -335,6 +335,9 @@ if __name__ == "__main__":
                     control_signal = joint_feedback + Kp * error + Kd * d_error
                     prev_error = error.copy()
 
+                    # equal = np.all(np.abs(error) < 0.087)
+                    # if not equal:
+                    #     break
                     # Trajectory Plan
                     theta_current = joint_feedback
                     theta_target = control_signal
@@ -358,6 +361,8 @@ if __name__ == "__main__":
                     state_local = client.state
                 if state_local != EdgeState.RUNNING:
                     break
+
+            print('##### exit equal while loop #####')
 
     except KeyboardInterrupt:
         print("SIGINT Received. Stopped")
