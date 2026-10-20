@@ -161,7 +161,6 @@ if __name__ == "__main__":
     VIRTUAL_TOOL_INDEX = 15  # 仮想ツールのインデックス
     REAL_JOINT_SLICE = slice(0, 6)  # 実関節のスライス
     try:
-        client.create_shared_memory(name)
         client.start_mqtt()
         time.sleep(0.1)
 
@@ -374,7 +373,6 @@ if __name__ == "__main__":
         }
         client.publish_message(robot_state_msg)
         client.publish_message(robot_state_msg)
-        client.close_shared_memory(name)
         sys.exit(0)
     except Exception as e:
         print("MQTT Recv Error:", e)
@@ -383,5 +381,4 @@ if __name__ == "__main__":
         }
         client.publish_message(robot_state_msg)
         client.publish_message(robot_state_msg)
-        client.close_shared_memory(name)
         sys.exit(1)
