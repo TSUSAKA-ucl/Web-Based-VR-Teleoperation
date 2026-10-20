@@ -253,17 +253,6 @@ if __name__ == "__main__":
             if equal:
                 time_robot_recv = int(time.time() * 1000)
                 print("time_robot_recv", time_robot_recv)
-                ping_init = (time_robot_recv - time_robot_pub) / 2
-                client.set_ping_init(ping_init)
-                print("ping_init:", ping_init)
-
-                time_vr_pub = client.time_vr_pub
-                print("time_vr_pub:", time_vr_pub)
-                time_offset = time_robot_recv - (time_vr_pub + ping_init)
-                print("time_offset:", time_offset)
-                client.set_time_offset(time_offset)
-                np.save(TIME_OFFSET_PATH, time_offset)
-
                 robot_state_msg = {
                     "time": time_robot_recv,
                     msg_key_state: "ready",
